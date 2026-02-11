@@ -1,0 +1,37 @@
+---
+import Base from "../layouts/Base.astro";
+const api = import.meta.env.PUBLIC_API_BASE;
+---
+<Base title="Avisos — Colapinto Hub">
+  <h1>Avisos (72 horas antes)</h1>
+  <p class="muted">Te mandamos: cronograma (horarios ARG), “dónde verlo” y pronóstico del circuito.</p>
+
+  <div class="card">
+    <form id="f">
+      <label>Email</label><br/>
+      <input name="email" type="email" required placeholder="tu@email.com" style="width: min(420px, 100%); padding:10px; border-radius:10px; border:1px solid rgba(127,127,127,.35)" />
+      <button class="btn primary" type="submit" style="margin-left:8px;">Suscribirme</button>
+      <p id="msg" class="muted"></p>
+    </form>
+  </div>
+
+  <script>
+    const api = "{api}";
+    const form = document.getElementById("f");
+    const msg = document.getElementById("msg");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      msg.textContent = "Enviando...";
+      const email = new FormData(form).get("email");
+      const res = await fetch(api + "/api/subscribe", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) msg.textContent = "Listo. Ya estás en la lista (MVP).";
+      else msg.textContent = data?.error || "Error";
+    });
+  </script>
+</Base>

@@ -1,0 +1,25 @@
+name = "colapinto-hub-api"
+main = "src/index.ts"
+compatibility_date = "2026-02-11"
+
+# 1) After creating D1, fill database_id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "colapinto_hub"
+database_id = "REPLACE_ME"
+
+[vars]
+# Email visible as sender in Brevo (must be verified in Brevo).
+SENDER_EMAIL = ""
+# 2) Put your Pages URL here after deploy (example: https://your-site.pages.dev)
+SITE_ORIGIN = "REPLACE_ME"
+# 3) OpenWeatherMap base (do not change)
+OPENWEATHER_BASE = "https://api.openweathermap.org/data/2.5"
+
+# Cron triggers run in UTC (Cloudflare).
+[triggers]
+crons = [
+  "*/15 * * * *",  # RSS + cache refresh
+  "10 3 * * *",    # calendar sync daily
+  "20 12 * * *"    # send 72h alerts daily
+]

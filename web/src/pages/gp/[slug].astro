@@ -1,0 +1,48 @@
+---
+import Base from "../../layouts/Base.astro";
+const api = import.meta.env.PUBLIC_API_BASE;
+
+const { slug } = Astro.params;
+const res = await fetch(`${api}/api/event?slug=${encodeURIComponent(slug)}`);
+const ev = await res.json();
+
+function fmt(iso) {
+  if (!iso) return "-";
+  return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(iso));
+}
+---
+<Base title={`${slug} — Colapinto Hub`}>
+  <h1>{ev.sessions?.[0]?.event_name || slug}</h1>
+  <p class="muted">{ev.sessions?.[0]?.circuit_name || ""} · {ev.sessions?.[0]?.locality || ""} · {ev.sessions?.[0]?.country || ""}</p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Sesiones</h2>
+      {ev.sessions?.length ? (
+        <ul>
+          {ev.sessions.map((s) => (
+            <li><strong>{s.session_name}</strong> <span class="muted">({fmt(s.start_time)})</span></li>
+          ))}
+        </ul>
+      ) : <div class="muted">Sin sesiones.</div>}
+    </div>
+
+    <div class="card">
+      <h2>Clima</h2>
+      {ev.weather?.city ? (
+        <div>
+          <div><strong>{ev.weather.city.name}</strong></div>
+          <div class="muted">Actualizado: {ev.weather_fetched_at ? fmt(ev.weather_fetched_at) : "-"}</div>
+          <div class="muted">Forecast 5 días (cada 3h)</div>
+        </div>
+      ) : (
+        <div class="muted">Configurar OPENWEATHER_API_KEY y ejecutar sync.</div>
+      )}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Turismo (placeholder)</h2>
+    <p class="muted">Acá van links de afiliados (Booking/Expedia) para hoteles cerca del circuito + paquetes.</p>
+  </div>
+</Base>

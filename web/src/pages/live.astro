@@ -1,0 +1,80 @@
+---
+import Base from "../layouts/Base.astro";
+const api = import.meta.env.PUBLIC_API_BASE;
+const nowRes = await fetch(`${api}/api/now`);
+const now = await nowRes.json();
+
+const weatherRes = await fetch(`${api}/api/weather`);
+const weather = await weatherRes.json();
+
+function fmt(iso) {
+  if (!iso) return "-";
+  return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(iso));
+}
+const status = now.current ? "EN VIVO (contexto)" : "PRÓXIMO";
+---
+<Base title="Live — Colapinto Hub">
+  <h1>Live</h1>
+  <div class="card">
+    <span class="pill">{status}</span>
+    <h2 style="margin-top:8px">
+      {now.current ? now.current.event_name + " — " + now.current.session_name : (now.next ? now.next.event_name + " — " + now.next.session_name : "Sin datos")}
+    </h2>
+    <p class="muted">
+      {now.current ? `Inició: ${fmt(now.current.start_time)} · Termina: ${fmt(now.current.end_time)}` : (now.next ? `Arranca: ${fmt(now.next.start_time)}` : "")}
+    </p>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Último</h3>
+      {now.last ? (
+        <div>
+          <div><strong>{now.last.event_name}</strong> — {now.last.session_name}</div>
+          <div class="muted">{fmt(now.last.end_time)}</div>
+        </div>
+      ) : <div class="muted">-</div>}
+    </div>
+
+    <div class="card">
+      <h3>Próximo</h3>
+      {now.next ? (
+        <div>
+          <div><strong>{now.next.event_name}</strong> — {now.next.session_name}</div>
+          <div class="muted">{fmt(now.next.start_time)}</div>
+        </div>
+      ) : <div class="muted">-</div>}
+    </div>
+
+    <div class="card">
+      <h3>Clima (forecast)</h3>
+      {weather?.weather?.city ? (
+        <div>
+          <div><strong>{weather.weather.city.name}</strong></div>
+          <div class="muted">Actualizado: {weather.fetched_at ? fmt(weather.fetched_at) : "-"}</div>
+          <div class="muted">Muestra: próximos 5 días (cada 3h)</div>
+        </div>
+      ) : (
+        <div class="muted">Configurá OPENWEATHER_API_KEY en el Worker y ejecutá el sync.</div>
+      )}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Hoy</h2>
+    {now.today?.length ? (
+      <ul>
+        {now.today.map((s) => (
+          <li><strong>{s.event_name}</strong> — {s.session_name} <span class="muted">({fmt(s.start_time)})</span></li>
+        ))}
+      </ul>
+    ) : (
+      <div class="muted">No hay sesiones cargadas para hoy.</div>
+    )}
+  </div>
+
+  <div class="card">
+    <h2>Noticias rápidas</h2>
+    <p class="muted">Ver página completa: <a href="/news">/news</a></p>
+  </div>
+</Base>
