@@ -1,0 +1,34 @@
+---
+import Base from "../../layouts/Base.astro";
+const api = import.meta.env.PUBLIC_API_BASE || "";
+const res = api ? await fetch(`${api}/api/events`) : null;
+const data = res ? await res.json() : { events: [] };
+
+function fmt(iso) {
+  if (!iso) return "-";
+  return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(iso));
+}
+---
+<Base title="Calendario 2026 — Vamos Nene...!!!" description="Calendario F1 2026: prácticas, clasificación, sprint y carrera con horarios en Argentina.">
+  <h2>Calendario 2026</h2>
+  <p class="muted">Cada evento tiene su página con sesiones + clima (si hay datos) + links.</p>
+
+  <div class="card">
+    {!api ? (
+      <div class="muted">Falta configurar <code>PUBLIC_API_BASE</code> en Cloudflare Pages.</div>
+    ) : null}
+
+    {data.events?.length ? (
+      <ul>
+        {data.events.map((e) => (
+          <li style="margin:10px 0">
+            <a href={`/gran-premio/${e.event_slug}`}><strong>{e.event_name}</strong></a>
+            <div class="muted">{fmt(e.start_time)} → {fmt(e.end_time)} · {e.locality || ""} {e.country ? `(${e.country})` : ""}</div>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <div class="muted">Todavía no hay eventos (corré el sync admin o esperá al cron).</div>
+    )}
+  </div>
+</Base>

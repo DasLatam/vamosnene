@@ -1,0 +1,53 @@
+---
+import Base from "../../layouts/Base.astro";
+const api = import.meta.env.PUBLIC_API_BASE || "";
+const { slug } = Astro.params;
+
+const res = api ? await fetch(`${api}/api/event?slug=${encodeURIComponent(slug)}`) : null;
+const ev = res ? await res.json() : { sessions: [], weather: null };
+
+function fmt(iso) {
+  if (!iso) return "-";
+  return new Intl.DateTimeFormat("es-AR", { dateStyle: "full", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(iso));
+}
+---
+<Base title={`${slug} — Vamos Nene...!!!`} description="Detalle del evento: sesiones oficiales + horarios Argentina + clima del circuito (si disponible).">
+  <h2>{ev.sessions?.[0]?.event_name || slug}</h2>
+  <p class="muted">{ev.sessions?.[0]?.circuit_name || ""} · {ev.sessions?.[0]?.locality || ""} · {ev.sessions?.[0]?.country || ""}</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Sesiones</h3>
+      {ev.sessions?.length ? (
+        <ul>
+          {ev.sessions.map((s) => (
+            <li style="margin:8px 0">
+              <strong>{s.session_name}</strong>
+              <div class="muted" style="font-size:12px">{fmt(s.start_time)} → {fmt(s.end_time)}</div>
+            </li>
+          ))}
+        </ul>
+      ) : <div class="muted">Sin sesiones.</div>}
+    </div>
+
+    <div class="card">
+      <h3>Clima</h3>
+      {ev.weather?.city?.name ? (
+        <div>
+          <div><strong>{ev.weather.city.name}</strong></div>
+          <div class="muted" style="font-size:12px">Actualizado: {ev.weather_fetched_at ? fmt(ev.weather_fetched_at) : "-"}</div>
+          <div class="muted" style="margin-top:10px">Forecast (cada 3h, 5 días). Tomalo como tendencia.</div>
+        </div>
+      ) : (
+        <div class="muted">
+          Todavía no hay pronóstico cacheado para este evento. Si ya configuraste OpenWeather, corré el sync admin o recargá (el API intenta cachear on-demand).
+        </div>
+      )}
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Turismo (próximo)</h3>
+    <p class="muted">Acá vamos a sumar paquetes / hoteles cerca del circuito con referidos (cuando tengamos los links aprobados).</p>
+  </div>
+</Base>

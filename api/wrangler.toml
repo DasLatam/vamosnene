@@ -5,14 +5,21 @@ compatibility_date = "2026-02-11"
 # 1) After creating D1, fill database_id below.
 [[d1_databases]]
 binding = "DB"
-database_name = "colapinto_hub"
-database_id = "REPLACE_ME"
+# database_name = "colapinto_hub"
+# database_id = "REPLACE_ME"
+
+# [[d1_databases]]
+# binding = "DB"
+database_name = "vamosnene_hub"
+database_id = "a46341b0-0b37-4935-9920-1bce0ed68c05"
+
+
 
 [vars]
 # Email visible as sender in Brevo (must be verified in Brevo).
 SENDER_EMAIL = ""
 # 2) Put your Pages URL here after deploy (example: https://your-site.pages.dev)
-SITE_ORIGIN = "REPLACE_ME"
+SITE_ORIGIN = "https://vamosnene.pages.dev"
 # 3) OpenWeatherMap base (do not change)
 OPENWEATHER_BASE = "https://api.openweathermap.org/data/2.5"
 

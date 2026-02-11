@@ -1,0 +1,156 @@
+---
+import Base from "../../layouts/Base.astro";
+const api = import.meta.env.PUBLIC_API_BASE || "";
+
+const q = "colapinto";
+const limit = 15;
+const offset = 0;
+
+const res = api ? await fetch(`${api}/api/news?q=${encodeURIComponent(q)}&limit=${limit}&offset=${offset}`) : null;
+const data = res ? await res.json() : { items: [], q, limit, offset };
+
+function fmt(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(d);
+}
+---
+<Base title="Noticias — Vamos Nene...!!!" description="Noticias de Colapinto con fuente y link, más notas editoriales automáticas en castellano.">
+  <h2>Noticias (Colapinto)</h2>
+  <p class="muted">Mostramos fuente + link y sumamos contexto breve en castellano. Evitamos copiar artículos completos.</p>
+
+  {!api ? (
+    <div class="card">
+      <div class="muted">Falta configurar <code>PUBLIC_API_BASE</code> en Cloudflare Pages.</div>
+    </div>
+  ) : null}
+
+  <div id="news-list">
+    {data.items?.length ? (
+      data.items.map((n) => (
+        <article class="card">
+          <div class="muted" style="font-size:12px">
+            <a href={n.source_url} rel="nofollow noopener noreferrer" target="_blank">{n.source_name}</a>
+            {n.published_at ? ` · ${fmt(n.published_at)}` : ""}
+          </div>
+
+          {n.image_url ? (
+            <img src={n.image_url} loading="lazy" decoding="async" style="margin:10px 0;border-radius:14px;border:1px solid rgba(255,255,255,.10)" />
+          ) : null}
+
+          <h3 style="margin:8px 0 6px">
+            <a href={n.url} rel="nofollow noopener noreferrer" target="_blank">{n.title}</a>
+          </h3>
+
+          {n.snippet ? <p class="muted" style="margin:0 0 10px">{n.snippet}</p> : null}
+
+          <p style="margin:0"><strong>Notas de la Redacción:</strong> {n.auto_note}</p>
+
+          {n.tags ? <div class="muted" style="font-size:12px;margin-top:10px">Tags: {n.tags}</div> : null}
+        </article>
+      ))
+    ) : (
+      <div class="card">
+        <div class="muted">No hay noticias aún. Corré el sync admin o esperá al cron.</div>
+      </div>
+    )}
+  </div>
+
+  <div class="card">
+    <button class="btn" id="load-more" type="button">Cargar más</button>
+    <span class="muted" id="load-state" style="margin-left:10px"></span>
+  </div>
+
+  <script is:inline>
+    const api = "{api}";
+    const q = "{q}";
+    let limit = {limit};
+    let offset = {limit}; // ya mostramos 0..limit-1
+
+    const list = document.getElementById("news-list");
+    const btn = document.getElementById("load-more");
+    const state = document.getElementById("load-state");
+
+    function esc(s){ return String(s||""); }
+
+    function card(n){
+      const wrap = document.createElement("article");
+      wrap.className = "card";
+
+      const meta = document.createElement("div");
+      meta.className = "muted";
+      meta.style.fontSize = "12px";
+      meta.innerHTML = `<a href="${esc(n.source_url)}" rel="nofollow noopener noreferrer" target="_blank">${esc(n.source_name)}</a>` + (n.published_at ? ` · ${esc(n.published_at)}` : "");
+      wrap.appendChild(meta);
+
+      if (n.image_url){
+        const img = document.createElement("img");
+        img.src = n.image_url;
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.style.margin = "10px 0";
+        img.style.borderRadius = "14px";
+        img.style.border = "1px solid rgba(255,255,255,.10)";
+        wrap.appendChild(img);
+      }
+
+      const h = document.createElement("h3");
+      h.style.margin = "8px 0 6px";
+      h.innerHTML = `<a href="${esc(n.url)}" rel="nofollow noopener noreferrer" target="_blank">${esc(n.title)}</a>`;
+      wrap.appendChild(h);
+
+      if (n.snippet){
+        const p = document.createElement("p");
+        p.className = "muted";
+        p.style.margin = "0 0 10px";
+        p.textContent = n.snippet;
+        wrap.appendChild(p);
+      }
+
+      const note = document.createElement("p");
+      note.style.margin = "0";
+      note.innerHTML = `<strong>Notas de la Redacción:</strong> ${esc(n.auto_note)}`;
+      wrap.appendChild(note);
+
+      if (n.tags){
+        const t = document.createElement("div");
+        t.className = "muted";
+        t.style.fontSize = "12px";
+        t.style.marginTop = "10px";
+        t.textContent = "Tags: " + n.tags;
+        wrap.appendChild(t);
+      }
+
+      return wrap;
+    }
+
+    async function loadMore(){
+      if (!api) return;
+      btn.disabled = true;
+      state.textContent = "Cargando…";
+      try{
+        const url = `${api}/api/news?q=${encodeURIComponent(q)}&limit=${limit}&offset=${offset}`;
+        const r = await fetch(url);
+        const data = await r.json();
+        const items = data.items || [];
+        if (!items.length){
+          state.textContent = "No hay más.";
+          btn.style.display = "none";
+          return;
+        }
+        for (const n of items){
+          list.appendChild(card(n));
+        }
+        offset += items.length;
+        state.textContent = "";
+      }catch(e){
+        state.textContent = "Error cargando más.";
+      }finally{
+        btn.disabled = false;
+      }
+    }
+
+    btn?.addEventListener("click", loadMore);
+  </script>
+</Base>

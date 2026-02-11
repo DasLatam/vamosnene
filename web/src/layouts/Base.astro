@@ -1,6 +1,16 @@
 ---
-const { title = "Vamos Nene...!!!", description = "F1 en castellano: calendario, clima, noticias y contexto en vivo." } = Astro.props;
-const apiBase = import.meta.env.PUBLIC_API_BASE;
+const {
+  title = "Vamos Nene...!!!",
+  description = "F1 en castellano: calendario, clima, noticias (Colapinto) y contexto en vivo.",
+} = Astro.props;
+
+const apiBase = import.meta.env.PUBLIC_API_BASE || "";
+const url = Astro.url;
+const origin = url.origin;
+const canonical = url.toString();
+
+const ogImage = `${origin}/og.svg`;
+const siteName = "Vamos Nene...!!!";
 ---
 <!doctype html>
 <html lang="es-AR">
@@ -9,49 +19,199 @@ const apiBase = import.meta.env.PUBLIC_API_BASE;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={Astro.url.toString()} />
+    <link rel="canonical" href={canonical} />
+
+    <!-- OpenGraph / Twitter -->
+    <meta property="og:locale" content="es_AR" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+
+    <meta name="theme-color" content="#76c7ff" />
+
+    <script type="application/ld+json">
+      {JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: siteName,
+        url: origin,
+        inLanguage: "es-AR",
+        description,
+      })}
+    </script>
+
     <style>
-      :root { color-scheme: light dark; }
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; margin: 0; line-height: 1.45; }
-      header, main, footer { max-width: 980px; margin: 0 auto; padding: 16px; }
-      header { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; border-bottom: 1px solid rgba(127,127,127,.25); }
-      nav a { margin-right: 12px; text-decoration: none; }
-      .card { border: 1px solid rgba(127,127,127,.25); border-radius: 12px; padding: 12px; margin: 12px 0; }
-      .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-      .pill { display:inline-block; padding:2px 10px; border-radius:999px; border:1px solid rgba(127,127,127,.35); font-size: 12px; }
-      .muted { opacity: .75; }
-      .btn { display:inline-block; padding:10px 12px; border-radius:10px; border:1px solid rgba(127,127,127,.35); text-decoration:none; }
-      .btn.primary { background: #2b7; color: #041; border-color: #2b7; }
-      input, button { font: inherit; }
+      :root{
+        --bg: #0b1020;
+        --card: rgba(255,255,255,.06);
+        --border: rgba(255,255,255,.14);
+        --text: rgba(255,255,255,.92);
+        --muted: rgba(255,255,255,.72);
+        --brand: #76c7ff;
+        --brand2:#ffffff;
+        --cta:#22c55e;
+        color-scheme: dark;
+      }
+      *{ box-sizing:border-box; }
+      body{
+        margin:0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif;
+        line-height:1.5;
+        background:
+          radial-gradient(1200px 600px at 10% 0%, rgba(118,199,255,.18), transparent 60%),
+          radial-gradient(1000px 600px at 90% 10%, rgba(255,255,255,.10), transparent 55%),
+          var(--bg);
+        color: var(--text);
+      }
+      a{ color: inherit; }
+      .wrap{ max-width: 1040px; margin: 0 auto; padding: 18px; }
+      header{
+        position: sticky; top:0;
+        backdrop-filter: blur(10px);
+        background: rgba(11,16,32,.72);
+        border-bottom: 1px solid var(--border);
+        z-index: 10;
+      }
+      .topbar{
+        display:flex; align-items:center; justify-content:space-between; gap: 12px;
+      }
+      .brand{
+        display:flex; flex-direction:column; gap:2px;
+      }
+      .brand strong{
+        letter-spacing:.2px;
+      }
+      .brand small{
+        color: var(--muted);
+        font-size:12px;
+      }
+      nav a{
+        text-decoration:none;
+        opacity:.9;
+        margin-right: 12px;
+        font-weight: 600;
+      }
+      nav a:hover{ opacity:1; text-decoration: underline; text-underline-offset: 4px; }
+      .btn{
+        display:inline-flex; align-items:center; justify-content:center;
+        padding:10px 12px; border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(255,255,255,.04);
+        text-decoration:none;
+        font-weight: 700;
+      }
+      .btn.primary{
+        background: var(--cta);
+        border-color: rgba(0,0,0,.2);
+        color:#07130a;
+      }
+      .hero{
+        padding: 14px 0 0;
+      }
+      .hero .card{
+        border-radius: 18px;
+        background: linear-gradient(90deg, rgba(118,199,255,.12), rgba(255,255,255,.06));
+        border: 1px solid var(--border);
+        padding: 14px;
+      }
+      .hero h1{
+        margin: 0 0 6px;
+        font-size: 26px;
+        letter-spacing:.2px;
+      }
+      .muted{ color: var(--muted); }
+      main{ padding: 14px 0 24px; }
+      .card{
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 14px;
+        background: var(--card);
+        margin: 14px 0;
+      }
+      .grid{
+        display:grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 14px;
+      }
+      .pill{
+        display:inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border:1px solid var(--border);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      footer{
+        border-top: 1px solid var(--border);
+        padding: 18px 0 26px;
+        color: var(--muted);
+      }
+      img{ max-width:100%; height:auto; }
+      input,button{ font:inherit; }
+      .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+      .spacer{ flex:1; }
+      code{ color: rgba(118,199,255,.95); }
     </style>
 
-    <!-- AdSense: pegar acá el script cuando te aprueben -->
+    <!-- AdSense: pegá acá el script cuando te aprueben -->
     <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXX" crossorigin="anonymous"></script> -->
   </head>
+
   <body>
     <header>
-      <div>
-        <strong>Vamos Nene...!!!</strong> <span class="muted">MVP</span>
+      <div class="wrap topbar">
+        <div class="brand">
+          <strong>Vamos Nene...!!!</strong>
+          <small>F1 en castellano · foco Colapinto · calendario · clima</small>
+        </div>
+
+        <nav class="row">
+          <a href="/vivo">Vivo</a>
+          <a href="/calendario/2026">Calendario</a>
+          <a href="/noticias">Noticias</a>
+          <a href="/tienda">Tienda</a>
+          <a href="/avisos">Avisos</a>
+          <span class="spacer"></span>
+          <a class="btn primary" href="/avisos">Suscribirme</a>
+        </nav>
       </div>
-      <nav>
-        <a href="/live">Live</a>
-        <a href="/calendar/2026">Calendario</a>
-        <a href="/news">Noticias</a>
-        <a href="/merch">Merch</a>
-        <a href="/alerts">Avisos</a>
-      </nav>
     </header>
 
-    <main>
+    <div class="wrap hero">
+      <div class="card">
+        <h1>Todo lo importante de F1, en clave argentina.</h1>
+        <div class="row">
+          <span class="pill">Colapinto</span>
+          <span class="pill">Horarios ARG</span>
+          <span class="pill">Clima del circuito</span>
+          <span class="pill">Noticias con contexto</span>
+        </div>
+        <p class="muted" style="margin:10px 0 0">
+          Nota: no somos un sitio oficial ni afiliado a Formula 1. Fuentes acreditadas en cada nota.
+        </p>
+      </div>
+    </div>
+
+    <main class="wrap">
       <slot />
     </main>
 
-    <footer class="muted">
-      <div>© {new Date().getFullYear()} Vamos Nene...!!!. No afiliado a Formula 1.</div>
-      <div>
-        <a href="/privacy">Privacidad</a> · <a href="/terms">Términos</a> · <a href="/about">Sobre</a> · <a href="/contact">Contacto</a>
+    <footer>
+      <div class="wrap">
+        <div>© {new Date().getFullYear()} Vamos Nene...!!!</div>
+        <div class="muted" style="margin-top:6px">
+          <a href="/privacy">Privacidad</a> · <a href="/terms">Términos</a> · <a href="/about">Sobre</a> · <a href="/contact">Contacto</a>
+        </div>
+        <div class="muted" style="margin-top:6px">
+          API: <code>{apiBase || "(no configurada)"}</code>
+        </div>
       </div>
-      <div class="muted">API: {apiBase}</div>
     </footer>
   </body>
 </html>

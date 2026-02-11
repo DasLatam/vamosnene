@@ -1,0 +1,87 @@
+---
+import Base from "../layouts/Base.astro";
+const api = import.meta.env.PUBLIC_API_BASE || "";
+
+async function safeJson(url) {
+  try {
+    const r = await fetch(url);
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+const now = api ? await safeJson(`${api}/api/now`) : null;
+const weather = api ? await safeJson(`${api}/api/weather`) : null;
+const news = api ? await safeJson(`${api}/api/news?q=colapinto&limit=8&offset=0`) : null;
+
+function fmt(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  return new Intl.DateTimeFormat("es-AR", { dateStyle: "full", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(d);
+}
+---
+<Base title="Vivo — Vamos Nene...!!!" description="Contexto en vivo: qué pasó, qué está ocurriendo, qué viene. Horarios ARG + clima + noticias de Colapinto.">
+  <h2>Contexto en vivo</h2>
+
+  {!api ? (
+    <div class="card">
+      <div class="muted">Falta configurar <code>PUBLIC_API_BASE</code> en Cloudflare Pages.</div>
+    </div>
+  ) : null}
+
+  <div class="grid">
+    <div class="card">
+      <h3>Ahora</h3>
+      {now?.current ? (
+        <div>
+          <div><strong>{now.current.event_name}</strong></div>
+          <div class="muted">{now.current.session_name} · {fmt(now.current.start_time)} → {fmt(now.current.end_time)}</div>
+        </div>
+      ) : (
+        <div class="muted">No hay sesión en vivo ahora.</div>
+      )}
+      <div style="margin-top:10px">
+        {now?.next ? (
+          <div>
+            <div class="muted">Próximo:</div>
+            <div><strong>{now.next.event_name}</strong></div>
+            <div class="muted">{now.next.session_name} · {fmt(now.next.start_time)}</div>
+            <a class="btn" href={`/gran-premio/${now.next.event_slug}`} style="margin-top:10px">Ver detalle</a>
+          </div>
+        ) : null}
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Clima del circuito</h3>
+      {weather?.weather?.city?.name ? (
+        <div>
+          <div><strong>{weather.weather.city.name}</strong></div>
+          <div class="muted">Actualizado: {weather.fetched_at ? fmt(weather.fetched_at) : "—"}</div>
+          <div class="muted" style="margin-top:10px">Tip: el pronóstico cambia mucho; tomalo como tendencia.</div>
+        </div>
+      ) : (
+        <div class="muted">Todavía no hay pronóstico cacheado para el evento actual/próximo.</div>
+      )}
+    </div>
+
+    <div class="card">
+      <h3>Colapinto (últimas)</h3>
+      {news?.items?.length ? (
+        <ul>
+          {news.items.map((n) => (
+            <li style="margin:10px 0">
+              <a href={n.url} rel="nofollow noopener noreferrer" target="_blank">{n.title}</a>
+              <div class="muted" style="font-size:12px">{n.source_name}</div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div class="muted">Sin noticias aún (o el sync no corrió).</div>
+      )}
+      <a class="btn" href="/noticias">Ver todas</a>
+    </div>
+  </div>
+</Base>
