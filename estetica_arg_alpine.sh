@@ -1,3 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ ! -d "web" ]]; then
+  echo "ERROR: ejecutá desde la raíz del repo (donde existe ./web)"
+  exit 1
+fi
+
+echo "==> 1) Favicon 43 (Argentina + Sol)"
+mkdir -p web/public
+cat > web/public/favicon.svg <<'SVG'
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128">
+  <defs>
+    <linearGradient id="flag" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#74ACDF"/>
+      <stop offset="0.34" stop-color="#74ACDF"/>
+      <stop offset="0.34" stop-color="#ffffff"/>
+      <stop offset="0.67" stop-color="#ffffff"/>
+      <stop offset="0.67" stop-color="#74ACDF"/>
+      <stop offset="1" stop-color="#74ACDF"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="26" fill="#070b18"/>
+  <rect x="10" y="10" width="108" height="108" rx="22" fill="url(#flag)" opacity="0.96"/>
+  <!-- sol -->
+  <circle cx="92" cy="38" r="11" fill="#f6c343"/>
+  <g fill="#f6c343" opacity="0.95">
+    <path d="M92 18l2 10h-4z"/>
+    <path d="M92 58l2-10h-4z"/>
+    <path d="M72 38l10 2v-4z"/>
+    <path d="M112 38l-10 2v-4z"/>
+  </g>
+  <text x="30" y="90" font-family="system-ui, -apple-system, Segoe UI, Roboto" font-weight="950" font-size="56" fill="#070b18">43</text>
+</svg>
+SVG
+
+echo "==> 2) Base layout: bandera + celeste/blanco + sol + acentos Alpine"
+mkdir -p web/src/layouts
+
+cat > web/src/layouts/Base.astro <<'ASTRO'
 ---
 const {
   title = "Vamos Nene...!!!",
@@ -318,3 +358,7 @@ const ogImage = `${origin}/og.svg`;
     </footer>
   </body>
 </html>
+ASTRO
+
+echo "OK: estética aplicada (Base.astro + favicon)."
+echo "Siguiente: commit + push para que Cloudflare Pages publique."
