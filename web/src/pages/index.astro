@@ -1,108 +1,156 @@
 ---
 import Base from "../layouts/Base.astro";
+const api = import.meta.env.PUBLIC_API_BASE;
 
-const API = import.meta.env.PUBLIC_API_BASE || "https://colapinto-hub-api.vamosnene.workers.dev";
+const nowR = await fetch(`${api}/api/now`);
+const now = await nowR.json();
 
-const nowRes = await fetch(`${API}/api/now`).then(r=>r.json()).catch(()=>null);
-const eventsRes = await fetch(`${API}/api/events?season=2026`).then(r=>r.json()).catch(()=>({events:[]}));
-const newsRes = await fetch(`${API}/api/news?q=colapinto&limit=6&offset=0`).then(r=>r.json()).catch(()=>({items:[]}));
+const newsR = await fetch(`${api}/api/news?only_colapinto=1&limit=6&offset=0`);
+const news = await newsR.json();
 
-const current = nowRes?.current;
-const next = nowRes?.next;
-
-function fmtAR(iso){
-  try{
-    return new Intl.DateTimeFormat("es-AR",{ dateStyle:"medium", timeStyle:"short", timeZone:"America/Argentina/Buenos_Aires"}).format(new Date(iso));
-  }catch{ return iso; }
+function fmt(iso){
+  if(!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  return new Intl.DateTimeFormat("es-AR",{dateStyle:"full",timeStyle:"short",timeZone:"America/Argentina/Buenos_Aires"}).format(d);
 }
-
-const next5 = (eventsRes?.events || []).filter(e => new Date(e.end_time) > new Date()).slice(0,5);
+const current = now?.current_event;
+const next = now?.next_session;
+const status = now?.status || "panel";
 ---
-<Base
-  title="Vamos Nene — Colapinto Hub (AR)"
-  description="Contexto en vivo, calendario 2026, clima del circuito y noticias de Colapinto (con fuentes)."
-  canonical="https://vamosnene.pages.dev/"
->
-  <section class="card" style="padding:18px;">
-    <div class="badge ok">Argentina · Celeste & Blanco · 43</div>
-    <h1 class="h1" style="margin-top:10px;">Colapinto, claro y al día.</h1>
-    <p class="p">Vivo (contexto + clima), calendario 2026 en horario ARG, y noticias filtradas con “Notas de la Redacción”.</p>
-    <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-      <a class="btn" href="/vivo">Ir a Vivo</a>
-      <a class="btn" href="/noticias">Ver Noticias</a>
-      <a class="btn" href="/calendario/2026">Calendario 2026</a>
-    </div>
-  </section>
-
-  <section class="grid grid-3" style="margin-top:14px;">
-    <div class="card" style="padding:14px;">
-      <div class="badge ok">Ahora</div>
-      <div class="hr"></div>
-      <div style="font-weight:950; font-size:16px;">{current ? `${current.event_name} — ${current.session_name}` : "Cargando..."}</div>
-      <div class="small" style="margin-top:6px;">{current ? `ARG: ${fmtAR(current.start_time)} → ${fmtAR(current.end_time)}` : ""}</div>
-      <div style="margin-top:10px;"><a class="btn" href="/vivo">Ver contexto</a></div>
-    </div>
-
-    <div class="card" style="padding:14px;">
-      <div class="badge hot">Próximo</div>
-      <div class="hr"></div>
-      <div style="font-weight:950; font-size:16px;">{next ? `${next.event_name} — ${next.session_name}` : "—"}</div>
-      <div class="small" style="margin-top:6px;">{next ? `ARG: ${fmtAR(next.start_time)}` : ""}</div>
-      <div class="small">{next ? `${next.locality}, ${next.country}` : ""}</div>
-    </div>
-
-    <div class="card" style="padding:14px;">
-      <div class="badge">Qué vas a ver</div>
-      <div class="hr"></div>
-      <ul class="ul">
-        <li>Estado de la jornada (sin humo).</li>
-        <li>Clima del circuito para el finde.</li>
-        <li>Noticias con fuente + lectura argentina.</li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="card" style="margin-top:14px; padding:16px;">
-    <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-      <h2 class="h2">Últimas noticias (Colapinto)</h2>
-      <a class="small" href="/noticias" style="text-decoration:underline;">Ver todas</a>
-    </div>
-    <div class="hr"></div>
-
-    {(newsRes.items || []).map((n) => (
-      <article class="newsItem card" style="box-shadow:none; border:1px solid var(--border); margin-bottom:12px;">
-        <img class="thumb" src={n.image_url || "/assets/colapinto-fallback.svg"} alt={n.title} loading="lazy" />
-        <div>
-          <div class="badge">Fuente: {n.source_name || "RSS"}</div>
-          <div style="margin-top:6px; font-weight:950; font-size:16px;">
-            <a href={n.url} target="_blank" rel="noopener">{n.title}</a>
-          </div>
-          <div class="small" style="margin-top:6px;">{n.published_at}</div>
-          <div class="p" style="margin-top:8px;">{n.snippet}</div>
-          {n.auto_note ? (
-            <div class="note"><b>Notas de la Redacción</b><br />{n.auto_note}</div>
-          ) : null}
+<Base title="Vamos Nene...!!! — Panel F1 Argentina" description="Panel F1 en castellano: Vivo, calendario 2026, clima y noticias de Colapinto.">
+  <section class="hero">
+    <div class="heroInner">
+      <div>
+        <div class="kicker">🇦🇷 Panel F1 · Colapinto · Horarios ARG</div>
+        <h1 class="h1">Entrás, y sabés qué está pasando.</h1>
+        <p class="p">
+          Esto es un <strong>panel</strong>. Diseñado para el público hispano/argentino: horarios ARG, clima, links útiles y noticias filtradas.
+        </p>
+        <div class="actions">
+          <a class="btn primary" href="/vivo">🟣 Abrir Vivo</a>
+          <a class="btn" href="/calendario/2026">📅 Calendario 2026</a>
+          <a class="btn alt" href="/suscribirme">🔔 Suscribirme</a>
         </div>
-      </article>
-    ))}
 
-    {(!newsRes.items || newsRes.items.length === 0) ? (
-      <div class="small">Todavía no hay notas filtradas. Se actualiza solo (cron).</div>
-    ) : null}
-  </section>
+        <div class="grid">
+          <div class="card cols-6">
+            <div class="cardHeader">
+              <h2 class="cardTitle">Estado</h2>
+              <p class="cardSub">Lo importante, sin texto plano.</p>
+            </div>
+            <div class="cardBody">
+              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                <span class={"badge " + (status === "live" ? "live" : status === "soon" ? "soon" : "")}>
+                  {status === "live" ? "EN VIVO" : status === "soon" ? "PRÓXIMO" : "PANEL"}
+                </span>
+                <span class="badge">Actualización: {now?.meta?.last_sync ? fmt(now.meta.last_sync) : "—"}</span>
+              </div>
 
-  <section class="card" style="margin-top:14px; padding:16px;">
-    <h2 class="h2">Próximas fechas 2026</h2>
-    <div class="small">Horario Argentina. Abrí la ficha del evento.</div>
-    <div class="hr"></div>
-    <div class="grid grid-2">
-      {next5.map((e) => (
-        <a class="card" href={`/gran-premio/${e.event_slug}`} style="padding:14px; box-shadow:none; border:1px solid var(--border);">
-          <div class="badge">{e.round ? `R${e.round}` : "TEST"}</div>
-          <div style="margin-top:8px; font-weight:950;">{e.event_name}</div>
-          <div class="small" style="margin-top:6px;">{e.locality}, {e.country} · {fmtAR(e.start_time)}</div>
-        </a>
-      ))}
+              {current ? (
+                <div style="margin-top:12px;">
+                  <div style="font-weight:900;">{current.name}</div>
+                  <div class="small">{current.circuit_name} · {current.locality} · {current.country}</div>
+                </div>
+              ) : (
+                <div class="small" style="margin-top:12px;">Sin evento detectado. Ejecutá el sync.</div>
+              )}
+
+              {next ? (
+                <div style="margin-top:12px;" class="note">
+                  <strong>Próxima sesión</strong>
+                  <div><b>{next.name}</b></div>
+                  <div>{fmt(next.start_at)} → {fmt(next.end_at)}</div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div class="card cols-6">
+            <div class="cardHeader">
+              <h2 class="cardTitle">Qué vas a ver</h2>
+              <p class="cardSub">Contenido útil (retención), no “relleno”.</p>
+            </div>
+            <div class="cardBody">
+              <ul style="margin:0;padding-left:18px;color:var(--muted);">
+                <li>Sesión actual/próxima (ARG) + contexto de jornada.</li>
+                <li>Clima del circuito (tendencia) + links de transmisión.</li>
+                <li>Noticias de Colapinto con imagen + “Notas de la Redacción”.</li>
+                <li>Track map modo replay (gratis) + panel externo si querés.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" style="height:100%;">
+          <div class="cardHeader">
+            <h2 class="cardTitle">Identidad 🇦🇷</h2>
+            <p class="cardSub">Celeste/blanco/sol + acentos Alpine.</p>
+          </div>
+          <div class="cardBody">
+            <div style="display:grid;gap:12px;">
+              <div style="border:1px solid var(--border);border-radius:16px;overflow:hidden;background:rgba(255,255,255,.7);">
+                <img src="/assets/colapinto.jpg" alt="Franco Colapinto" style="width:100%;height:220px;object-fit:cover;display:block" onerror="this.style.display='none'">
+                <div class="small" style="padding:10px;">Si la imagen no carga, no rompe. (Opcional CC)</div>
+              </div>
+              <div style="border:1px solid var(--border);border-radius:16px;overflow:hidden;background:rgba(255,255,255,.7);">
+                <img src="/assets/alpine.jpg" alt="Alpine en pista" style="width:100%;height:180px;object-fit:cover;display:block" onerror="this.style.display='none'">
+              </div>
+              <div class="small">
+                Consejo: el tráfico orgánico viene por <b>páginas internas</b> (vivo, gp, noticias, calendario).
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
+
+  <div class="grid">
+    <div class="card cols-8">
+      <div class="cardHeader">
+        <h2 class="cardTitle">Últimas noticias (Colapinto)</h2>
+        <p class="cardSub">Entrá a /noticias para ver más y “Cargar más”.</p>
+      </div>
+      <div class="cardBody" style="display:grid;gap:12px;">
+        {news.items?.length ? news.items.map((n) => (
+          <div class="newsCard">
+            <div class="newsImg">{n.image_url ? <img src={n.image_url} alt={n.title} loading="lazy" /> : null}</div>
+            <div>
+              <div class="small"><a href={n.source_url} rel="nofollow">{n.source_name}</a> · {fmt(n.published_at)}</div>
+              <div style="font-weight:900;margin:6px 0;"><a href={n.url} rel="nofollow">{n.title}</a></div>
+              {n.snippet ? <div class="small">{n.snippet}</div> : null}
+              {n.auto_note ? (
+                <div class="note" style="margin-top:10px;">
+                  <strong>Notas de la Redacción</strong>
+                  <div>{n.auto_note}</div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )) : (
+          <div class="small">Todavía no hay noticias. Ejecutá el sync.</div>
+        )}
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <a class="btn primary" href="/noticias">Ver todas</a>
+          <a class="btn" href="/vivo">Abrir Vivo</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="card cols-4">
+      <div class="cardHeader">
+        <h2 class="cardTitle">Acciones rápidas</h2>
+        <p class="cardSub">Para que el usuario “haga algo”.</p>
+      </div>
+      <div class="cardBody" style="display:grid;gap:10px;">
+        <a class="btn primary" href="/suscribirme">🔔 Alertas 72hs antes</a>
+        <a class="btn" href="/tienda">🧢 Merch ARG 43</a>
+        <a class="btn alt" href="/calendario/2026">📅 Próximas fechas</a>
+        <a class="btn" href="/gran-premio/bahrain">🏁 Detalle GP (demo)</a>
+      </div>
+    </div>
+  </div>
 </Base>

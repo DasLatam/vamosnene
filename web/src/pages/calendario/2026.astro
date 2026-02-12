@@ -2,37 +2,72 @@
 import Base from "../../layouts/Base.astro";
 const api = import.meta.env.PUBLIC_API_BASE;
 
-const ev = await fetch(`${api}/api/events`).then(r=>r.json()).catch(()=>({events:[]}));
-const events = Array.isArray(ev.events) ? ev.events : [];
+const r = await fetch(`${api}/api/events?season=2026`);
+const data = await r.json();
 
-function fmtAR(iso){
-  if(!iso) return "—";
-  const d = new Date(iso); if(isNaN(d.getTime())) return String(iso);
-  return new Intl.DateTimeFormat("es-AR", { dateStyle:"medium", timeZone:"America/Argentina/Buenos_Aires" }).format(d);
+function fmt(iso){
+  if(!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  return new Intl.DateTimeFormat("es-AR",{dateStyle:"medium",timeStyle:"short",timeZone:"America/Argentina/Buenos_Aires"}).format(d);
 }
 ---
-<Base title="Calendario 2026 — Vamos Nene...!!!" description="Calendario F1 2026 en español con foco Argentina (#43).">
-  <h1 style="margin: 10px 0 6px">Calendario 2026</h1>
-  <p class="muted" style="margin:0">
-    Qué vas a ver: todos los Grandes Premios con link al detalle (horarios, clima, guía para verlo en ARG).
-  </p>
-
-  <div class="card" style="margin-top:14px">
-    <h2 style="margin:0 0 8px">Grandes Premios</h2>
-
-    {events.length ? (
-      <div class="grid" style="margin-top:12px">
-        {events.map(e => (
-          <a class="card" href={`/gran-premio/${e.event_slug}`} style="text-decoration:none">
-            <div class="kpi"><span class="dot"></span> {e.event_name}</div>
-            <div class="muted" style="margin-top:8px">Inicio: {fmtAR(e.start_time)}</div>
-            <div class="muted">País: {e.country || "—"} · Circuito: {e.circuit_name || "—"}</div>
-            <div class="btns"><span class="btn primary">Abrir detalle</span></div>
-          </a>
-        ))}
+<Base title="Calendario 2026 — Vamos Nene...!!!" description="Calendario F1 2026 con horarios y detalle del GP.">
+  <section class="hero">
+    <div class="heroInner">
+      <div>
+        <div class="kicker">📅 Calendario 2026</div>
+        <h1 class="h1">Calendario 2026</h1>
+        <p class="p">Entrás acá para planificar: fechas, horarios ARG y acceso al detalle de cada GP.</p>
+        <div class="actions">
+          <a class="btn primary" href="/vivo">🟣 Ir a Vivo</a>
+          <a class="btn alt" href="/suscribirme">🔔 Alertas</a>
+        </div>
       </div>
-    ) : (
-      <div class="muted">Sin eventos aún. Corré sync admin.</div>
-    )}
+      <div>
+        <div class="card" style="height:100%;">
+          <div class="cardHeader">
+            <h2 class="cardTitle">Cómo usarlo</h2>
+            <p class="cardSub">Click en un GP para ver clima y sesiones.</p>
+          </div>
+          <div class="cardBody" class="small">
+            Para SEO: cada GP es una página indexable (con contenido útil).
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="card" style="margin-top:14px;">
+    <div class="cardHeader">
+      <h2 class="cardTitle">Lista de eventos</h2>
+      <p class="cardSub">Se llena automáticamente desde la API.</p>
+    </div>
+    <div class="cardBody">
+      {data.items?.length ? (
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Evento</th>
+              <th>Fecha (inicio)</th>
+              <th>País</th>
+              <th>Detalle</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.items.map((e) => (
+              <tr>
+                <td><b>{e.name}</b><div class="small">{e.circuit_name}</div></td>
+                <td>{fmt(e.start_at)}</td>
+                <td>{e.country}</td>
+                <td><a class="btn" href={`/gran-premio/${e.slug}`}>Ver GP</a></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div class="small">Sin datos aún. Ejecutá el sync.</div>
+      )}
+    </div>
   </div>
 </Base>

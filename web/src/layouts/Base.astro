@@ -1,98 +1,99 @@
 ---
-import "../styles/theme.css";
-
 const {
-  title = "Vamos Nene — Colapinto Hub (AR)",
-  description = "Agenda 2026, noticias de Colapinto, clima del circuito y contexto en vivo. Sitio fan no oficial.",
-  canonical = Astro.url.toString(),
+  title = "Vamos Nene...!!!",
+  description = "Panel F1 en castellano: vivo, calendario 2026, clima y noticias de Colapinto.",
 } = Astro.props;
 
-const nav = [
-  { href: "/vivo", label: "Vivo" },
-  { href: "/calendario/2026", label: "Calendario 2026" },
-  { href: "/noticias", label: "Noticias" },
-  { href: "/suscribirme", label: "Suscribirme" },
-  { href: "/tienda", label: "Tienda" },
-  { href: "/about", label: "Historia" },
-];
+const apiBase = import.meta.env.PUBLIC_API_BASE;
+const here = Astro.url;
+const canonical = here.toString();
 ---
+
 <!doctype html>
 <html lang="es-AR">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="canonical" href={canonical} />
+    <title>{title}</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/src/styles/site.css" />
+
+    <!-- OpenGraph básico -->
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content={canonical} />
-    <meta name="twitter:card" content="summary_large_image" />
-    <title>{title}</title>
+    <meta property="og:locale" content="es_AR" />
 
-    <script type="application/ld+json" set:html={JSON.stringify({
-      "@context":"https://schema.org",
-      "@type":"WebSite",
-      "name":"Vamos Nene",
-      "url":"https://vamosnene.pages.dev/",
-      "inLanguage":"es-AR",
-      "description":description
-    })}></script>
+    <!-- AdSense: pegar acá cuando te aprueben -->
+    <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXX" crossorigin="anonymous"></script> -->
   </head>
-
   <body>
-    <header class="container" style="padding-bottom:8px;">
-      <div class="card" style="padding:14px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
-        <a href="/" class="btn" style="border-color: rgba(246,180,10,.35); background: linear-gradient(135deg, rgba(246,180,10,.20), rgba(116,172,223,.18));">
-          <span style="display:inline-flex; align-items:center; gap:10px;">
-            <span style="width:10px;height:10px;border-radius:999px;background:var(--sun); box-shadow: 0 0 0 5px rgba(246,180,10,.18);"></span>
-            <span style="font-weight:950;">Vamos Nene</span>
-            <span class="badge" title="Número 43">43</span>
-          </span>
-        </a>
+    <div class="topbar">
+      <div class="container" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div class="brand">
+          <a href="/" class="brandMark" aria-label="Inicio">43</a>
+          <a href="/" class="brandTitle" style="text-decoration:none;">
+            <strong>Vamos Nene...!!!</strong>
+            <span>Argentina · F1 · Colapinto</span>
+          </a>
+        </div>
 
-        <nav style="display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-end;">
-          {nav.map((n) => (<a href={n.href} class="badge">{n.label}</a>))}
+        <nav class="nav" aria-label="Navegación">
+          <a class="primary" href="/vivo">🟣 Vivo</a>
+          <a href="/calendario/2026">📅 Calendario</a>
+          <a href="/noticias">📰 Noticias</a>
+          <a href="/tienda">🧢 Tienda</a>
+          <a href="/suscribirme">🔔 Suscribirme</a>
         </nav>
       </div>
-    </header>
+    </div>
 
-    <main class="container" style="padding-top:8px;">
+    <main class="container">
       <slot />
     </main>
 
-    <footer class="container" style="padding-top:0;">
-      <div class="card" style="padding:16px;">
-        <div class="grid grid-3">
+    <footer class="footer">
+      <div class="container">
+        <div class="footerGrid">
           <div>
-            <div style="font-weight:950;">Mapa del sitio</div>
-            <div class="small" style="margin-top:6px;">
-              {nav.map((n, i) => (
-                <span>
-                  <a href={n.href} style="text-decoration:underline;">{n.label}</a>{i < nav.length-1 ? " · " : ""}
-                </span>
-              ))}
+            <div style="display:flex;gap:10px;align-items:center;">
+              <div class="brandMark" aria-hidden="true" style="width:34px;height:34px;border-radius:14px;">43</div>
+              <div>
+                <div style="font-weight:900;color:var(--text);">Vamos Nene...!!!</div>
+                <div class="small">Panel para enterarte rápido: qué pasa, a qué hora (ARG), clima y links útiles.</div>
+              </div>
+            </div>
+
+            <div class="note" style="margin-top:12px;">
+              <strong>Disclaimer</strong>
+              Nota: no somos un sitio oficial ni afiliado a Formula 1. Fuentes acreditadas en cada nota.
+            </div>
+
+            <div class="small" style="margin-top:10px;">
+              API: {apiBase}
             </div>
           </div>
+
           <div>
-            <div style="font-weight:950;">Legales</div>
-            <div class="small" style="margin-top:6px;">
-              <a href="/privacy" style="text-decoration:underline;">Privacidad</a> ·
-              <a href="/terms" style="text-decoration:underline;">Términos</a> ·
-              <a href="/contact" style="text-decoration:underline;">Contacto</a>
+            <div style="font-weight:900;color:var(--text);margin-bottom:8px;">Mapa del sitio</div>
+            <div class="siteMap">
+              <a href="/vivo">Vivo</a>
+              <a href="/calendario/2026">Calendario 2026</a>
+              <a href="/noticias">Noticias (Colapinto)</a>
+              <a href="/gran-premio/bahrain">Gran Premio (detalle)</a>
+              <a href="/tienda">Tienda</a>
+              <a href="/suscribirme">Suscribirme</a>
+              <a href="/about">Sobre</a>
+              <a href="/contact">Contacto</a>
+              <a href="/privacy">Privacidad</a>
+              <a href="/terms">Términos</a>
             </div>
-          </div>
-          <div>
-            <div style="font-weight:950;">Disclaimer</div>
-            <div class="small" style="margin-top:6px; line-height:1.5;">
-              Nota: no somos un sitio oficial ni afiliado a Formula 1/FIA ni a equipos. Fuentes acreditadas en cada nota.
-            </div>
+            <div class="small" style="margin-top:10px;">© {new Date().getFullYear()} Vamos Nene...!!!</div>
           </div>
         </div>
-
-        <div class="hr"></div>
-        <div class="small">© {new Date().getFullYear()} Vamos Nene — fan hub argentino.</div>
       </div>
     </footer>
   </body>

@@ -1,189 +1,164 @@
 ---
 import Base from "../layouts/Base.astro";
+import TrackMap from "../components/TrackMap.astro";
 
 const api = import.meta.env.PUBLIC_API_BASE;
 
-let now: any = null;
-let news: any = null;
+const nowR = await fetch(`${api}/api/now`);
+const now = await nowR.json();
 
-async function safeJson(url: string) {
-  try {
-    const r = await fetch(url, { headers: { "accept": "application/json" } });
-    if (!r.ok) return null;
-    return await r.json();
-  } catch { return null; }
-}
+const newsR = await fetch(`${api}/api/news?only_colapinto=1&limit=8&offset=0`);
+const news = await newsR.json();
 
-if (api) {
-  now = await safeJson(`${api}/api/now`);
-  news = await safeJson(`${api}/api/news`);
-}
-
-function fmtAR(iso?: string) {
-  if (!iso) return "";
+function fmt(iso){
+  if(!iso) return "";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return String(iso);
-  return new Intl.DateTimeFormat("es-AR", { dateStyle:"medium", timeStyle:"short", timeZone:"America/Argentina/Buenos_Aires" }).format(d);
+  return new Intl.DateTimeFormat("es-AR",{dateStyle:"full",timeStyle:"short",timeZone:"America/Argentina/Buenos_Aires"}).format(d);
 }
 
-const items = Array.isArray(news?.items) ? news.items.slice(0, 10) : [];
+const current = now?.current_event;
+const sessions = now?.sessions || [];
+const status = now?.status || "panel";
+const next = now?.next_session;
+const where = now?.where_to_watch || [];
 ---
-<Base layout="dashboard" title="Vivo — Dashboard F1 (ARG) · Vamos Nene...!!!" description="Dashboard estilo F1: estado, horarios ARG, ticker y mapa (beta).">
-  <h1 style="margin-top:6px">Dashboard Vivo</h1>
-  <p class="muted" style="margin-top:6px">
-    Si entrás acá es para saber <strong>qué está pasando</strong>, <strong>a qué hora</strong> y <strong>qué mirar</strong>. Modo “panel” tipo F1.
-  </p>
+<Base title="Vivo — Vamos Nene...!!!" description="Panel en vivo: qué está pasando, horarios ARG, clima y noticias de Colapinto.">
+  <section class="hero">
+    <div class="heroInner">
+      <div>
+        <div class="kicker">🟣 Vivo · Panel (ARG)</div>
+        <h1 class="h1">Contexto en vivo</h1>
+        <p class="p">
+          Entrás para saber: <b>qué sesión es</b>, <b>horarios ARG</b>, <b>clima</b>, <b>dónde verlo</b> y <b>qué noticias importan</b>.
+        </p>
 
-  <div class="dashLayout">
-    <!-- LEFT: leaderboard placeholder (para retención visual) -->
-    <div class="card">
-      <div class="row" style="justify-content:space-between">
-        <strong>Tabla (beta)</strong>
-        <span class="badge"><span class="dot"></span> Testing / GP</span>
-      </div>
-      <p class="muted small" style="margin-top:10px">
-        En plan gratis, sin feed oficial de posiciones en tiempo real. Igual dejamos el layout listo.
-      </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <span class={"badge " + (status === "live" ? "live" : status === "soon" ? "soon" : "")}>
+            {status === "live" ? "EN VIVO" : status === "soon" ? "PRÓXIMO" : "PANEL"}
+          </span>
+          <span class="badge">Actualización: {now?.meta?.last_sync ? fmt(now.meta.last_sync) : "—"}</span>
+          <span class="badge">Fuentes: calendario (Ergast/Jolpica) · clima (OpenWeather) · noticias (RSS con crédito)</span>
+        </div>
 
-      <div class="sideList" style="margin-top:10px">
-        {["NOR","VER","LEC","RUS","HAM","PIA","ALO","SAI","PER","COL"].map((c,i)=>(
-          <div class="driverRow">
-            <div class="row" style="gap:10px">
-              <span class="driverTag">{String(i+1).padStart(2,"0")}</span>
-              <div>
-                <div class="driverName">{c}</div>
-                <div class="muted small">stint —</div>
-              </div>
-            </div>
-            <div class="muted small kpi">—</div>
+        {current ? (
+          <div style="margin-top:12px;" class="note">
+            <strong>{current.name}</strong>
+            <div>{current.circuit_name} · {current.locality} · {current.country}</div>
+            {next ? <div style="margin-top:6px;"><b>Próximo:</b> {next.name} · {fmt(next.start_at)}</div> : null}
           </div>
-        ))}
+        ) : null}
+      </div>
+
+      <div>
+        <div class="card" style="height:100%;">
+          <div class="cardHeader">
+            <h2 class="cardTitle">Dónde verlo (Argentina)</h2>
+            <p class="cardSub">Chequear disponibilidad por plan/operador.</p>
+          </div>
+          <div class="cardBody" style="display:grid;gap:10px;">
+            {where.length ? where.map((w) => (
+              <div class="badge">{w}</div>
+            )) : (
+              <div class="small">Configurable desde la API (por defecto: Disney+ / TV/cable).</div>
+            )}
+            <a class="btn alt" href="/suscribirme">🔔 Recibir avisos 72hs antes</a>
+          </div>
+        </div>
       </div>
     </div>
+  </section>
 
-    <!-- CENTER: track -->
-    <div class="trackBox">
-      <div class="trackTop">
-        <div class="row">
-          <span class="badge">{now?.current ? "EN VIVO" : (now?.next ? "PRÓXIMO" : "SIN DATOS")}</span>
-          <span class="badge">Horario ARG: <span class="kpi">{now?.current ? fmtAR(now.current.start_time) : (now?.next ? fmtAR(now.next.start_time) : "—")}</span></span>
-        </div>
-        <div class="row">
-          <a class="btn" href="/calendario/2026">Calendario</a>
-          <a class="btn primary" href="/noticias">Noticias</a>
-        </div>
+  <div class="grid">
+    <div class="card cols-8">
+      <div class="cardHeader">
+        <h2 class="cardTitle">Sesiones (horario ARG)</h2>
+        <p class="cardSub">Hoy / mañana / próximo. Sin texto plano: tabla clara.</p>
       </div>
-
-      <div class="trackCanvasWrap">
-        <canvas id="track" width="980" height="520" style="width:100%;height:auto;display:block"></canvas>
-      </div>
-
-      <div class="muted small" style="padding:0 14px 14px">
-        Mapa (beta): visual tipo F1. Si tu API expone posiciones (ej: OpenF1 con token), acá se anima “en vivo”.
-      </div>
-    </div>
-
-    <!-- RIGHT: panels -->
-    <div>
-      <div class="card">
-        <strong>Contexto de la jornada</strong>
-        <div class="hr"></div>
-        <p class="muted"><strong>Ahora:</strong> {now?.current ? `${now.current.event_name} — ${now.current.session_name}` : "—"}</p>
-        <p class="muted"><strong>Ventana:</strong> {now?.current ? `${fmtAR(now.current.start_time)} → ${fmtAR(now.current.end_time)}` : "—"}</p>
-        <p class="muted"><strong>Próximo:</strong> {now?.next ? `${now.next.event_name} — ${now.next.session_name} · ${fmtAR(now.next.start_time)}` : "—"}</p>
-        <div class="row" style="margin-top:10px">
-          <a class="btn alpine" href="/suscribirme">Avisos 72hs antes</a>
-        </div>
-      </div>
-
-      <div class="card">
-        <strong>Ticker (Colapinto)</strong>
-        <div class="hr"></div>
-        {items.length ? (
-          <div style="display:flex;flex-direction:column;gap:10px">
-            {items.map((n:any)=>(
-              <div style="padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06)">
-                <div class="muted small">{n.source || "Fuente"}</div>
-                <div style="font-weight:950;margin-top:6px">{n.title || "—"}</div>
-              </div>
-            ))}
-          </div>
+      <div class="cardBody">
+        {sessions.length ? (
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Sesión</th>
+                <th>Inicio (ARG)</th>
+                <th>Fin (ARG)</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sessions.map((s) => (
+                <tr>
+                  <td><b>{s.name}</b></td>
+                  <td>{fmt(s.start_at)}</td>
+                  <td>{fmt(s.end_at)}</td>
+                  <td>
+                    {s.live ? <span class="badge live">EN VIVO</span> : s.soon ? <span class="badge soon">PRÓXIMO</span> : <span class="badge">—</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : (
-          <p class="muted">Sin noticias cacheadas aún.</p>
+          <div class="small">Sin sesiones aún. Ejecutá el sync.</div>
         )}
       </div>
+    </div>
 
-      <div class="card">
-        <strong>Dónde verlo (ARG)</strong>
-        <div class="hr"></div>
-        <p class="muted small">
-          MVP: bloque informativo. Próximo paso: tabla por proveedor (Flow/DGO/Telecentro/Movistar/Disney+) por sesión.
-        </p>
-        <ul class="muted small">
-          <li>TV: ESPN / Fox Sports (según derechos vigentes)</li>
-          <li>Streaming: Disney+ (según derechos vigentes)</li>
-        </ul>
+    <div class="card cols-4">
+      <div class="cardHeader">
+        <h2 class="cardTitle">Clima (tendencia)</h2>
+        <p class="cardSub">Forecast 5 días (cada 3h) si hay datos sincronizados.</p>
+      </div>
+      <div class="cardBody">
+        {now?.weather ? (
+          <div style="display:grid;gap:10px;">
+            <div class="badge">Ciudad: {now.weather.city}</div>
+            <div class="badge">Actualizado: {fmt(now.weather.updated_at)}</div>
+            <div class="small">Tip: mirá viento/temperatura para entender comportamiento de neumáticos.</div>
+          </div>
+        ) : (
+          <div class="note">
+            <strong>Clima</strong>
+            <div>Si ves “Configurar OPENWEATHER…”, corré el sync admin (ya lo tenés) y esperá al cron.</div>
+          </div>
+        )}
+      </div>
+    </div>
+
+    <div class="cols-12">
+      <TrackMap driver={43} />
+    </div>
+
+    <div class="card cols-12">
+      <div class="cardHeader">
+        <h2 class="cardTitle">Noticias relevantes (Colapinto)</h2>
+        <p class="cardSub">Esto se actualiza por cron y por sync manual. Abajo, “Notas de la Redacción” destacadas.</p>
+      </div>
+      <div class="cardBody" style="display:grid;gap:12px;">
+        {news.items?.length ? news.items.map((n) => (
+          <div class="newsCard">
+            <div class="newsImg">{n.image_url ? <img src={n.image_url} alt={n.title} loading="lazy" /> : null}</div>
+            <div>
+              <div class="small"><a href={n.source_url} rel="nofollow">{n.source_name}</a> · {fmt(n.published_at)}</div>
+              <div style="font-weight:900;margin:6px 0;"><a href={n.url} rel="nofollow">{n.title}</a></div>
+              {n.snippet ? <div class="small">{n.snippet}</div> : null}
+              {n.auto_note ? (
+                <div class="note" style="margin-top:10px;">
+                  <strong>Notas de la Redacción</strong>
+                  <div>{n.auto_note}</div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )) : (
+          <div class="small">Sin noticias aún. Ejecutá /api/admin/sync</div>
+        )}
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <a class="btn primary" href="/noticias">Ver todas</a>
+          <a class="btn" href="/gran-premio/bahrain">Detalle GP (demo)</a>
+        </div>
       </div>
     </div>
   </div>
-
-  <script type="module">
-    // Track placeholder: estilo F1 (pista + glow). Si mañana tenés posiciones reales, acá se reemplaza por fetch+animación.
-    const c = document.getElementById("track");
-    const ctx = c.getContext("2d");
-
-    function draw(){
-      const W = c.width, H = c.height;
-      ctx.clearRect(0,0,W,H);
-
-      // fondo
-      ctx.fillStyle = "rgba(0,0,0,0)";
-      ctx.fillRect(0,0,W,H);
-
-      // pista fake (loop)
-      const pts = [];
-      for(let t=0;t<Math.PI*2;t+=0.02){
-        const x = W/2 + Math.cos(t)*330 + Math.cos(t*3)*50;
-        const y = H/2 + Math.sin(t)*180 + Math.sin(t*2)*40;
-        pts.push([x,y]);
-      }
-
-      // glow
-      ctx.lineWidth = 18;
-      ctx.strokeStyle = "rgba(255,255,255,0.10)";
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      pts.forEach(([x,y],i)=> i?ctx.lineTo(x,y):ctx.moveTo(x,y));
-      ctx.closePath();
-      ctx.stroke();
-
-      // track
-      ctx.lineWidth = 7;
-      ctx.strokeStyle = "rgba(255,255,255,0.75)";
-      ctx.beginPath();
-      pts.forEach(([x,y],i)=> i?ctx.lineTo(x,y):ctx.moveTo(x,y));
-      ctx.closePath();
-      ctx.stroke();
-
-      // marker #43
-      const p = pts[Math.floor(pts.length*0.72)];
-      ctx.beginPath();
-      ctx.fillStyle = "rgba(103,183,255,0.28)";
-      ctx.arc(p[0],p[1], 18, 0, Math.PI*2);
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.fillStyle = "rgba(255,255,255,0.92)";
-      ctx.arc(p[0],p[1], 6, 0, Math.PI*2);
-      ctx.fill();
-
-      ctx.font = "900 16px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
-      ctx.fillStyle = "rgba(255,255,255,0.85)";
-      ctx.fillText("43", p[0]+12, p[1]-10);
-    }
-
-    draw();
-    addEventListener("resize", draw);
-  </script>
 </Base>

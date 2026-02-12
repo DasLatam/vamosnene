@@ -1,15 +1,31 @@
-export const prerender = true;
+export async function GET({ request }: { request: Request }) {
+  const origin = new URL(request.url).origin;
+  const urls = [
+    "/",
+    "/vivo",
+    "/noticias",
+    "/calendario/2026",
+    "/tienda",
+    "/suscribirme",
+    "/about",
+    "/contact",
+    "/privacy",
+    "/terms",
+    "/gran-premio/bahrain",
+  ];
 
-const pages = [
-  "/", "/vivo", "/calendario/2026", "/noticias", "/suscribirme", "/tienda",
-  "/about", "/contact", "/privacy", "/terms"
-];
+  const now = new Date().toISOString();
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
+    urls.map((p) =>
+      `  <url><loc>${origin}${p}</loc><lastmod>${now}</lastmod><changefreq>daily</changefreq></url>`
+    ).join("\n") +
+    `\n</urlset>\n`;
 
-export async function GET() {
-  const base = "https://vamosnene.pages.dev";
-  const body = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${pages.map(p => `  <url><loc>${base}${p}</loc></url>`).join("\n")}
-</urlset>`;
-  return new Response(body, { headers: { "Content-Type": "application/xml; charset=utf-8" } });
+  return new Response(xml, {
+    headers: {
+      "Content-Type": "application/xml; charset=utf-8",
+      "Cache-Control": "public, max-age=600",
+    },
+  });
 }

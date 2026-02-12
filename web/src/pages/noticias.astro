@@ -1,59 +1,42 @@
 ---
 import Base from "../layouts/Base.astro";
+import NewsFeed from "../components/NewsFeed.astro";
 const api = import.meta.env.PUBLIC_API_BASE;
 
-let news: any = null;
-
-async function safeJson(url: string) {
-  try {
-    const r = await fetch(url, { headers: { "accept": "application/json" } });
-    if (!r.ok) return null;
-    return await r.json();
-  } catch { return null; }
-}
-
-if (api) news = await safeJson(`${api}/api/news`);
-
-const items = Array.isArray(news?.items) ? news.items : [];
+const r = await fetch(`${api}/api/news?only_colapinto=1&limit=12&offset=0`);
+const initial = await r.json();
 ---
-<Base title="Noticias (Colapinto) — Vamos Nene...!!!" description="Noticias sobre Colapinto con fuentes acreditadas y contexto.">
-  <h1>Noticias</h1>
-  <p class="muted">
-    Qué ves acá: <strong>notas sobre Colapinto</strong> (o relacionadas) con <strong>fuente acreditada</strong> + resumen.
-  </p>
-
-  <div class="card">
-    <div class="row" style="justify-content:space-between">
-      <span class="badge"><span class="dot"></span> Fuentes por RSS / agregadores</span>
-      <a class="btn primary" href="/vivo">Volver al Dashboard</a>
-    </div>
-  </div>
-
-  {items.length ? (
-    <div class="grid">
-      {items.slice(0, 24).map((n:any)=>(
-        <article class="card" style="margin:0">
-          <div class="row" style="justify-content:space-between">
-            <span class="badge">Fuente: {n.source || "—"}</span>
-            <span class="badge">{n.published_at || "—"}</span>
+<Base title="Noticias (Colapinto) — Vamos Nene...!!!" description="Noticias filtradas de Colapinto (título + texto), con imágenes cuando la fuente las publica.">
+  <section class="hero">
+    <div class="heroInner">
+      <div>
+        <div class="kicker">📰 Noticias · Colapinto</div>
+        <h1 class="h1">Noticias (Colapinto)</h1>
+        <p class="p">
+          Mostramos titulares con crédito + link a la fuente. Sumamos <b>Notas de la Redacción</b> (paráfrasis/contexto) para que tenga sentido en Argentina.
+        </p>
+        <div class="actions">
+          <a class="btn primary" href="/vivo">🟣 Volver a Vivo</a>
+          <a class="btn alt" href="/suscribirme">🔔 Suscribirme</a>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="height:100%;">
+          <div class="cardHeader">
+            <h2 class="cardTitle">Fuentes</h2>
+            <p class="cardSub">RSS (con crédito) + filtro Colapinto.</p>
           </div>
-          <h2 style="margin:10px 0 6px;font-size:18px">{n.title || "—"}</h2>
-          <p class="muted">{n.summary || "Sin resumen aún."}</p>
-          {n.editorial_note ? (
-            <div class="card" style="margin:10px 0 0; box-shadow:none; border-color:rgba(11,18,32,.10); background:rgba(103,183,255,.12)">
-              <strong>Notas de la Redacción</strong>
-              <p class="muted" style="margin-top:6px">{n.editorial_note}</p>
+          <div class="cardBody">
+            <div class="small">
+              Si una fuente viene mal codificada, arreglamos el charset (para evitar “present�”).
             </div>
-          ) : null}
-          <div class="row" style="margin-top:10px">
-            {n.url ? <a class="btn" href={n.url} target="_blank" rel="noreferrer">Leer fuente</a> : null}
           </div>
-        </article>
-      ))}
+        </div>
+      </div>
     </div>
-  ) : (
-    <div class="card">
-      <p class="muted">Todavía no hay noticias cacheadas. Ejecutá el sync admin del Worker o esperá al cron.</p>
-    </div>
-  )}
+  </section>
+
+  <div style="margin-top:14px;">
+    <NewsFeed initial={initial} title="Feed" />
+  </div>
 </Base>

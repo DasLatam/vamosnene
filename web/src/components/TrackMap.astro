@@ -1,0 +1,97 @@
+---
+const api = import.meta.env.PUBLIC_API_BASE;
+const { driver = 43 } = Astro.props;
+---
+<div class="card">
+  <div class="cardHeader">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <div>
+        <h2 class="cardTitle">Track Map (Replay)</h2>
+        <p class="cardSub">Modo gratis: intentamos “replay” con datos históricos. Si no hay datos disponibles, igual mantenemos el layout “panel”.</p>
+      </div>
+      <a class="btn" href="https://f1-dash.com/dashboard/track-map" target="_blank" rel="nofollow">Abrir panel externo</a>
+    </div>
+  </div>
+
+  <div class="cardBody">
+    <div style="border:1px solid var(--border);border-radius:16px;background:rgba(255,255,255,.7);padding:12px;">
+      <canvas id="track" width="980" height="420" style="width:100%;height:auto;border-radius:14px;"></canvas>
+      <div class="small" id="trackMsg" style="margin-top:8px;">Cargando…</div>
+    </div>
+  </div>
+</div>
+
+<script is:inline>
+  const API = ${JSON.stringify(api)};
+  const DRIVER = ${JSON.stringify(driver)};
+  const cvs = document.getElementById("track");
+  const ctx = cvs.getContext("2d");
+  const msg = document.getElementById("trackMsg");
+
+  let last = null;
+
+  function clear(){
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+    // “pista” decorativa: un loop suave (no es el trazado real)
+    ctx.globalAlpha = 0.18;
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = "#0b1220";
+    ctx.beginPath();
+    ctx.moveTo(120, 300);
+    ctx.bezierCurveTo(240, 60, 520, 60, 660, 160);
+    ctx.bezierCurveTo(760, 230, 720, 360, 560, 340);
+    ctx.bezierCurveTo(360, 310, 300, 260, 260, 220);
+    ctx.bezierCurveTo(220, 180, 180, 200, 160, 230);
+    ctx.bezierCurveTo(120, 290, 110, 330, 120, 300);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  function drawPoints(points){
+    clear();
+
+    // puntos
+    ctx.fillStyle = "rgba(78,151,215,.55)";
+    for(const p of points){
+      ctx.beginPath();
+      ctx.arc(p.x * cvs.width, p.y * cvs.height, 3, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // “auto” actual
+    const lastP = points[points.length-1];
+    ctx.fillStyle = "rgba(255,79,216,.85)";
+    ctx.beginPath();
+    ctx.arc(lastP.x * cvs.width, lastP.y * cvs.height, 7, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  async function tick(){
+    try{
+      const r = await fetch(`${API}/api/replay?driver=${encodeURIComponent(DRIVER)}&window=25`);
+      const j = await r.json();
+
+      if(!j.ok){
+        msg.textContent = j.note || "No hay datos de replay disponibles ahora.";
+        clear();
+        return;
+      }
+
+      if(j.points && j.points.length){
+        drawPoints(j.points);
+        msg.textContent = `Replay: session_key=${j.session_key} · puntos=${j.points.length}`;
+      }else{
+        msg.textContent = "No llegaron puntos todavía.";
+        clear();
+      }
+      last = j;
+    }catch(e){
+      console.error(e);
+      msg.textContent = "Error cargando track map.";
+      clear();
+    }
+  }
+
+  tick();
+  setInterval(tick, 6000);
+</script>

@@ -2,721 +2,753 @@ import { XMLParser } from "fast-xml-parser";
 
 export interface Env {
   DB: D1Database;
-  SITE_ORIGIN: string;
-  OPENWEATHER_BASE: string;
-  OPENWEATHER_API_KEY?: string; // secret
-  BREVO_API_KEY?: string;       // secret
-  ADMIN_KEY?: string;           // secret
+  OPENWEATHER_API_KEY?: string;
+  OPENWEATHER_BASE?: string;
+  ADMIN_KEY?: string;
+  SITE_ORIGIN?: string;
   SENDER_EMAIL?: string;
+  BREVO_API_KEY?: string;
 }
 
-type SessionRow = {
-  uid: string;
-  season: number;
-  round: number | null;
-  event_slug: string;
-  event_name: string;
-  session_name: string;
-  session_type: string;
-  start_time: string;
-  end_time: string;
-  circuit_name: string | null;
-  circuit_lat: number | null;
-  circuit_lon: number | null;
-  country: string | null;
-  locality: string | null;
-  updated_at?: string | null;
-};
+type Json = Record<string, any>;
 
-function corsHeaders(extra?: HeadersInit) {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    ...(extra || {}),
-  };
-}
+const UA =
+  "VamosNeneBot/1.0 (+https://vamosnene.pages.dev) Cloudflare-Worker";
 
-function json(data: unknown, init?: ResponseInit) {
+const parser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: "",
+});
+
+function json(data: any, init: ResponseInit = {}) {
   return new Response(JSON.stringify(data), {
-    headers: { "content-type": "application/json; charset=utf-8", ...corsHeaders(init?.headers) },
     ...init,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      ...(init.headers || {}),
+    },
   });
 }
 
-function ok(text: string, init?: ResponseInit) {
-  return new Response(text, { ...init, headers: { ...corsHeaders(init?.headers) } });
+function ok(data: any) {
+  return json({ ok: true, ...data });
 }
 
-function isoNow() {
-  return new Date().toISOString();
+function bad(error: string, code = 400, extra: any = {}) {
+  return json({ ok: false, error, ...extra }, { status: code });
 }
 
-function slugify(s: string) {
-  return s.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+function toIso(d: any) {
+  try {
+    const dt = new Date(d);
+    return isNaN(dt.getTime()) ? null : dt.toISOString();
+  } catch {
+    return null;
+  }
 }
 
-function parseErgastTime(date: string, time?: string) {
-  const t = (time || "00:00:00Z").replace("Z", "Z");
-  return new Date(`${date}T${t}`).toISOString();
+function stripHtml(input: string) {
+  if (!input) return "";
+  return input
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-function addHours(iso: string, hours: number) {
-  return new Date(new Date(iso).getTime() + hours * 3600_000).toISOString();
+async function fetchTextSmart(url: string): Promise<string> {
+  const res = await fetch(url, {
+    headers: { "user-agent": UA, accept: "text/html,application/xml,text/xml,*/*" },
+  });
+  const buf = await res.arrayBuffer();
+  const ct = (res.headers.get("content-type") || "").toLowerCase();
+  const m = ct.match(/charset=([^;]+)/i);
+  const hinted = m?.[1]?.trim();
+
+  const candidates = Array.from(
+    new Set([hinted, "utf-8", "windows-1252", "iso-8859-1"].filter(Boolean) as string[])
+  );
+
+  for (const cs of candidates) {
+    try {
+      const dec = new TextDecoder(cs as any, { fatal: false });
+      const txt = dec.decode(buf);
+      // si no hay “�” o es utf-8, lo aceptamos
+      if (!txt.includes("�") || cs === "utf-8") return txt;
+    } catch {
+      // sigue
+    }
+  }
+  // fallback
+  return new TextDecoder("utf-8").decode(buf);
 }
 
-function addDays(dateYYYYMMDD: string, add: number) {
-  const d = new Date(`${dateYYYYMMDD}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + add);
-  return d.toISOString().slice(0, 10);
+async function fetchJson(url: string): Promise<any> {
+  const res = await fetch(url, { headers: { "user-agent": UA, accept: "application/json" } });
+  if (!res.ok) throw new Error(`fetchJson ${res.status} ${url}`);
+  return res.json();
 }
 
-async function setSync(env: Env, key: string, value: string) {
-  await env.DB.prepare(
-    "INSERT INTO sync_state (key, value, updated_at) VALUES (?1, ?2, ?3) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at"
-  ).bind(key, value, isoNow()).run();
+async function ensureSchema(db: D1Database) {
+  // meta
+  await db
+    .prepare("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)")
+    .run();
+
+  // columns check for articles
+  const cols = await db.prepare("PRAGMA table_info(articles)").all<any>();
+  const names = new Set((cols.results || []).map((r: any) => r.name));
+
+  if (!names.has("image_url")) {
+    await db.prepare("ALTER TABLE articles ADD COLUMN image_url TEXT").run();
+  }
+  if (!names.has("lang")) {
+    await db.prepare("ALTER TABLE articles ADD COLUMN lang TEXT").run();
+  }
 }
 
-async function getSync(env: Env, key: string) {
-  return await env.DB.prepare("SELECT value, updated_at FROM sync_state WHERE key=?1").bind(key).first<any>();
+async function setMeta(db: D1Database, key: string, value: string) {
+  await db.prepare("INSERT OR REPLACE INTO meta(key,value) VALUES (?1,?2)").bind(key, value).run();
 }
 
-async function seedSources(env: Env) {
-  const sources = [
-    { code: "f1latam", name: "F1Latam", site_url: "https://www.f1latam.com/", rss_url: "https://www.f1latam.com/rss/rss.php" },
-    { code: "f1", name: "Formula1.com", site_url: "https://www.formula1.com/", rss_url: "https://www.formula1.com/en/latest/all.xml" },
-    { code: "autosport", name: "Autosport", site_url: "https://www.autosport.com/f1/", rss_url: "https://www.autosport.com/rss/f1/news/" },
-    { code: "motorsport", name: "Motorsport.com", site_url: "https://www.motorsport.com/f1/", rss_url: "https://www.motorsport.com/rss/f1/news/" },
+async function getMeta(db: D1Database, key: string) {
+  const r = await db.prepare("SELECT value FROM meta WHERE key=?1").bind(key).first<any>();
+  return r?.value || null;
+}
+
+async function seedSources(db: D1Database) {
+  // fuentes ES prioritarias + fallback EN
+  const seeds = [
+    {
+      name: "F1Latam",
+      url: "https://www.f1latam.com/",
+      rss_url: "https://www.f1latam.com/rss/rss.php",
+      lang: "es",
+    },
+    {
+      name: "Motorsport LATAM (F1)",
+      url: "https://lat.motorsport.com/f1/",
+      rss_url: "https://lat.motorsport.com/rss/f1/news/",
+      lang: "es",
+    },
+    {
+      name: "Motorsport ES (F1)",
+      url: "https://es.motorsport.com/f1/",
+      rss_url: "https://es.motorsport.com/rss/f1/news/",
+      lang: "es",
+    },
+    {
+      name: "Motorsport (F1)",
+      url: "https://www.motorsport.com/f1/",
+      rss_url: "https://www.motorsport.com/rss/f1/news/",
+      lang: "en",
+    },
   ];
 
-  const stmt = env.DB.prepare("INSERT OR REPLACE INTO news_sources (code, name, site_url, rss_url) VALUES (?1, ?2, ?3, ?4)");
-  await env.DB.batch(sources.map(s => stmt.bind(s.code, s.name, s.site_url, s.rss_url)));
-}
-
-function stripHtml(s: string) {
-  return (s || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function textish(v: any): string {
-  if (!v) return "";
-  if (typeof v === "string") return v;
-  if (typeof v === "object" && "#text" in v) return String(v["#text"] || "");
-  return String(v);
-}
-
-function fixMojibake(s: string) {
-  // Corrige casos comunes tipo "present�" por problemas de decoding
-  // (no es mágico; la clave es decodificar bien el RSS; esto es un fallback mínimo)
-  return (s || "").replace(/\uFFFD/g, ""); // elimina �
-}
-
-function autoNote(title: string, snippet: string, sourceName: string) {
-  const t = (title || "").toLowerCase();
-  const sn = (snippet || "").toLowerCase();
-  const hay = `${t} ${sn}`;
-  const tags: string[] = [];
-  const add = (x: string) => { if (!tags.includes(x)) tags.push(x); };
-
-  if (hay.includes("colapinto") || (hay.includes("franco") && hay.includes("alpine"))) add("colapinto");
-  if (hay.includes("alpine")) add("alpine");
-  if (hay.includes("williams")) add("williams");
-
-  if (/(wins|victory|gan(a|ó)|triunf)/.test(hay)) add("resultado");
-  if (/(qualifying|pole|clasific)/.test(hay)) add("qualy");
-  if (/(practice|fp1|fp2|fp3|práctic)/.test(hay)) add("practica");
-  if (/(penalty|sancion|grid drop)/.test(hay)) add("sancion");
-  if (/(crash|accident|choque)/.test(hay)) add("incidente");
-  if (/(test|testing|pre-season|pretemporada)/.test(hay)) add("testing");
-
-  const angle =
-    tags.includes("sancion") ? "posibles cambios en la grilla" :
-    tags.includes("incidente") ? "estado del auto y consecuencias deportivas" :
-    tags.includes("resultado") ? "tendencias de ritmo y estrategia" :
-    "qué significa para el fin de semana";
-
-  const note =
-`Según ${sourceName}, la noticia apunta a ${angle}. ` +
-`Lectura útil: separar titular de señales (ritmo, confiabilidad, decisiones del equipo). ` +
-`Si aparece Colapinto, mirá el contexto (compuesto, carga, tráfico) antes de cerrar conclusiones.`;
-
-  return { note, tags: tags.join(",") };
-}
-
-async function fetchRSS(url: string) {
-  const res = await fetch(url, { cf: { cacheTtl: 300, cacheEverything: true } as any });
-  if (!res.ok) throw new Error(`rss fetch failed ${res.status}`);
-  const ct = res.headers.get("content-type") || "";
-
-  const buf = await res.arrayBuffer();
-  const bytes = new Uint8Array(buf);
-
-  // Intento UTF-8 primero; si hay muchos � o el header dice latin1/iso-8859-1, pruebo latin1.
-  const utf8 = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
-  const looksBad = (utf8.match(/\uFFFD/g) || []).length >= 2;
-  const wantsLatin1 = /iso-8859-1|latin1/i.test(ct);
-
-  if (wantsLatin1 || looksBad) {
-    const latin1 = new TextDecoder("iso-8859-1", { fatal: false }).decode(bytes);
-    return latin1;
+  for (const s of seeds) {
+    await db
+      .prepare(
+        "INSERT OR IGNORE INTO news_sources(name,url,rss_url,is_active) VALUES (?1,?2,?3,1)"
+      )
+      .bind(s.name, s.url, s.rss_url)
+      .run();
   }
-  return utf8;
 }
 
-function extractImageUrl(it: any): string | null {
-  const enc = it.enclosure;
-  if (enc) {
-    if (typeof enc === "object" && (enc.url || enc["@_url"])) return String(enc.url || enc["@_url"]);
-    if (typeof enc === "string") return enc;
+function pickImageFromItem(item: any): string | null {
+  // enclosure
+  const enc = item?.enclosure;
+  if (enc?.url) return String(enc.url);
+
+  // media:content / media:thumbnail
+  const mc = item?.["media:content"];
+  if (mc) {
+    if (Array.isArray(mc) && mc[0]?.url) return String(mc[0].url);
+    if (mc.url) return String(mc.url);
+  }
+  const mt = item?.["media:thumbnail"];
+  if (mt) {
+    if (Array.isArray(mt) && mt[0]?.url) return String(mt[0].url);
+    if (mt.url) return String(mt.url);
   }
 
-  const media = it["media:content"] || it["media:thumbnail"];
-  const pick = (x: any) => {
-    if (!x) return null;
-    if (Array.isArray(x)) return pick(x[0]);
-    if (typeof x === "object" && (x.url || x["@_url"])) return String(x.url || x["@_url"]);
-    return null;
-  };
-  const m = pick(media);
-  if (m) return m;
-
-  const raw = textish(it.description || it.summary || it.content || "");
-  const m2 = String(raw).match(/https?:\/\/[^\s"'<>]+?\.(jpg|jpeg|png|webp)/i);
-  if (m2?.[0]) return m2[0];
+  // html inside description/content
+  const html = item?.["content:encoded"] || item?.description || "";
+  const m = String(html).match(/<img[^>]+src=["']([^"']+)["']/i);
+  if (m?.[1]) return m[1];
 
   return null;
 }
 
+async function fetchOgImage(url: string): Promise<string | null> {
+  try {
+    const html = await fetchTextSmart(url);
+    const m =
+      html.match(/property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+      html.match(/content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+    if (m?.[1]) return m[1];
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function autoNote(title: string, snippet: string) {
+  const t = (title || "").toLowerCase();
+  const s = (snippet || "").toLowerCase();
+
+  const bullets: string[] = [];
+  if (t.includes("testing") || t.includes("pruebas") || s.includes("testing") || s.includes("pruebas")) {
+    bullets.push("Separá ritmo real vs. simulación (carga/compuesto).");
+    bullets.push("Buscá consistencia y confiabilidad, no un tiempo aislado.");
+  }
+  if (t.includes("qualifying") || t.includes("clasificación") || s.includes("qualifying")) {
+    bullets.push("En quali importa: neumático, tráfico y evolución de pista.");
+  }
+  if (t.includes("race") || t.includes("carrera") || s.includes("race")) {
+    bullets.push("Mirá degradación, estrategia y ventana de parada.");
+  }
+  if (t.includes("alpine") || s.includes("alpine")) {
+    bullets.push("Clave Alpine: balance + tracción lenta + gestión de neumáticos.");
+  }
+  if (t.includes("colapinto") || s.includes("colapinto") || t.includes("franco")) {
+    bullets.push("En clave argentina: compará contra referencia (Gasly) y contexto del stint.");
+  }
+
+  if (!bullets.length) {
+    bullets.push("Leé el titular como señal, no como conclusión.");
+    bullets.push("Buscá datos: stint, compuesto, tráfico y confiabilidad.");
+  }
+
+  return bullets.slice(0, 3).join(" ");
+}
+
 async function syncNews(env: Env) {
-  await seedSources(env);
+  const db = env.DB;
+  await ensureSchema(db);
+  await seedSources(db);
 
-  const srcRows = await env.DB.prepare("SELECT code, name, rss_url FROM news_sources").all();
-  const sources = (srcRows.results || []) as any[];
+  const sources = await db
+    .prepare("SELECT id,name,url,rss_url FROM news_sources WHERE is_active=1")
+    .all<any>();
 
-  const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "", trimValues: true });
+  const KEYWORDS = ["colapinto", "franco colapinto", "alpine", "43"];
 
-  let inserted = 0;
+  for (const src of sources.results || []) {
+    const xml = await fetchTextSmart(src.rss_url);
+    const parsed = parser.parse(xml);
 
-  for (const s of sources) {
-    try {
-      const xml = await fetchRSS(s.rss_url);
-      const data = parser.parse(xml);
+    // RSS2: rss.channel.item
+    const channel = parsed?.rss?.channel;
+    const items = channel?.item
+      ? Array.isArray(channel.item)
+        ? channel.item
+        : [channel.item]
+      : [];
 
-      const items = data?.rss?.channel?.item || data?.feed?.entry || [];
-      const arr = Array.isArray(items) ? items : [items];
+    // Atom: feed.entry
+    const entries = parsed?.feed?.entry
+      ? Array.isArray(parsed.feed.entry)
+        ? parsed.feed.entry
+        : [parsed.feed.entry]
+      : [];
 
-      for (const it of arr.slice(0, 60)) {
-        const titleRaw = textish(it.title && (it.title["#text"] || it.title)) || textish(it.title);
-        const title = fixMojibake(titleRaw);
-        const link =
-          (typeof it.link === "string" ? it.link :
-           it.link?.href || it.link?.["@_href"] || it.link?.["href"] ||
-           (Array.isArray(it.link) ? (it.link[0]?.href || it.link[0]) : "")) || "";
+    const list = items.length ? items : entries;
 
-        const guid = textish(it.guid && (it.guid["#text"] || it.guid)) || link || `${s.code}:${title}`;
-        const pub = it.pubDate || it.published || it.updated || null;
+    // Intentamos enriquecer imágenes (si faltan)
+    for (let i = 0; i < Math.min(list.length, 30); i++) {
+      const it = list[i];
+      const title = stripHtml(it.title || it["title"] || "");
+      const link = it.link?.href || it.link || it.guid || "";
+      const pub = it.pubDate || it.published || it.updated || null;
 
-        const rawDesc = it.description || it.summary || it.content || "";
-        const descRaw = typeof rawDesc === "string" ? rawDesc : rawDesc?.["#text"] || "";
-        const desc = fixMojibake(stripHtml(descRaw));
-        const snippet = desc.slice(0, 220).trim();
+      const descRaw = it.description || it.summary || it["content:encoded"] || "";
+      const snippet = stripHtml(descRaw).slice(0, 220);
 
-        if (!title || !link) continue;
+      const haystack = (title + " " + snippet).toLowerCase();
+      const matches = KEYWORDS.some((k) => haystack.includes(k));
 
-        const { note, tags } = autoNote(title, snippet, s.name);
-        const imageUrl = extractImageUrl(it);
+      // guardamos todo pero si only_colapinto, mostramos filtrado.
+      const image1 = pickImageFromItem(it);
+      let image = image1;
 
-        const r = await env.DB.prepare(
-          "INSERT OR IGNORE INTO articles (guid, source_code, title, url, published_at, snippet, auto_note, tags, image_url) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"
-        ).bind(guid, s.code, title, link, pub, snippet, note, tags, imageUrl).run();
-
-        if ((r as any)?.meta?.changes) inserted += (r as any).meta.changes;
+      if (!image && i < 8 && link) {
+        image = await fetchOgImage(String(link));
       }
-    } catch (e) {
-      console.log("RSS failed", s.code, String(e));
+
+      const note = autoNote(title, snippet);
+
+      // tags básicas
+      const tags = haystack.includes("colapinto") ? "colapinto" : (haystack.includes("alpine") ? "alpine" : "");
+
+      await db
+        .prepare(
+          `INSERT OR IGNORE INTO articles
+            (source_id,title,url,snippet,published_at,tags,created_at,image_url,lang)
+           VALUES
+            (?1,?2,?3,?4,?5,?6,?7,?8,?9)`
+        )
+        .bind(
+          src.id,
+          title,
+          String(link),
+          snippet,
+          toIso(pub) || new Date().toISOString(),
+          tags,
+          new Date().toISOString(),
+          image || null,
+          src.name.includes("ES") || src.name.includes("LATAM") || src.name.includes("F1Latam") ? "es" : "en"
+        )
+        .run();
+
+      // auto_note en tabla separada? MVP: guardamos en snippet? mejor: columna no existe.
+      // Para no tocar schema más, auto_note se recalcula al listar.
+      // (igual, el frontend lo toma desde API)
+      void matches;
     }
   }
 
-  await setSync(env, "news", JSON.stringify({ inserted }));
+  await setMeta(db, "news_last_sync", new Date().toISOString());
 }
 
-async function upsertSession(env: Env, row: SessionRow) {
-  await env.DB.prepare(
-    `INSERT INTO sessions (uid, season, round, event_slug, event_name, session_name, session_type, start_time, end_time, circuit_name, circuit_lat, circuit_lon, country, locality, updated_at)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
-     ON CONFLICT(uid) DO UPDATE SET
-       season=excluded.season,
-       round=excluded.round,
-       event_slug=excluded.event_slug,
-       event_name=excluded.event_name,
-       session_name=excluded.session_name,
-       session_type=excluded.session_type,
-       start_time=excluded.start_time,
-       end_time=excluded.end_time,
-       circuit_name=excluded.circuit_name,
-       circuit_lat=excluded.circuit_lat,
-       circuit_lon=excluded.circuit_lon,
-       country=excluded.country,
-       locality=excluded.locality,
-       updated_at=excluded.updated_at`
-  ).bind(
-    row.uid,
-    row.season,
-    row.round,
-    row.event_slug,
-    row.event_name,
-    row.session_name,
-    row.session_type,
-    row.start_time,
-    row.end_time,
-    row.circuit_name,
-    row.circuit_lat,
-    row.circuit_lon,
-    row.country,
-    row.locality,
-    isoNow()
+async function listNews(env: Env, req: Request) {
+  const db = env.DB;
+  await ensureSchema(db);
+
+  const url = new URL(req.url);
+  const q = (url.searchParams.get("q") || "").trim().toLowerCase();
+  const limit = Math.min(parseInt(url.searchParams.get("limit") || "12", 10) || 12, 50);
+  const offset = Math.max(parseInt(url.searchParams.get("offset") || "0", 10) || 0, 0);
+  const only = url.searchParams.get("only_colapinto") === "1";
+
+  // WHERE
+  const where: string[] = [];
+  const binds: any[] = [];
+
+  if (only) {
+    where.push("(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(tags) LIKE ?)");
+    binds.push("%colapinto%", "%colapinto%", "%colapinto%");
+  }
+
+  if (q) {
+    where.push("(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(tags) LIKE ?)");
+    binds.push(`%${q}%`, `%${q}%`, `%${q}%`);
+  }
+
+  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+  const totalR = await db
+    .prepare(`SELECT COUNT(*) as c FROM articles ${whereSql}`)
+    .bind(...binds)
+    .first<any>();
+  const total = totalR?.c || 0;
+
+  const rows = await db
+    .prepare(
+      `SELECT a.id,a.title,a.url,a.snippet,a.published_at,a.tags,a.image_url,
+              ns.name as source_name, ns.url as source_url
+       FROM articles a
+       JOIN news_sources ns ON ns.id=a.source_id
+       ${whereSql}
+       ORDER BY a.published_at DESC
+       LIMIT ? OFFSET ?`
+    )
+    .bind(...binds, limit, offset)
+    .all<any>();
+
+  const items = (rows.results || []).map((r: any) => ({
+    id: r.id,
+    title: r.title,
+    url: r.url,
+    snippet: r.snippet,
+    published_at: r.published_at,
+    tags: r.tags,
+    source_name: r.source_name,
+    source_url: r.source_url,
+    image_url: r.image_url,
+    auto_note: autoNote(r.title, r.snippet),
+  }));
+
+  const last_sync = await getMeta(db, "news_last_sync");
+
+  return json({
+    ok: true,
+    items,
+    meta: { total, offset, limit, last_sync },
+  });
+}
+
+// Calendar / events: usamos lo ya existente del starter (Ergast/Jolpica) y DB sessions/events.
+async function syncCalendar(env: Env, season = 2026) {
+  const db = env.DB;
+  // Jolpica (Ergast replacement)
+  const base = "https://api.jolpi.ca/ergast/f1";
+  const r = await fetchJson(`${base}/${season}.json`);
+  const races = r?.MRData?.RaceTable?.Races || [];
+
+  // schema base (starter)
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS events(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      season INTEGER,
+      round INTEGER,
+      slug TEXT UNIQUE,
+      name TEXT,
+      circuit_name TEXT,
+      locality TEXT,
+      country TEXT,
+      start_at TEXT,
+      end_at TEXT,
+      created_at TEXT
+    )`
   ).run();
-}
 
-async function syncSchedule(env: Env) {
-  const url = "https://api.jolpi.ca/ergast/f1/2026.json";
-  const res = await fetch(url, { cf: { cacheTtl: 3600, cacheEverything: true } as any });
-  if (!res.ok) throw new Error(`schedule fetch failed ${res.status}`);
-  const data = await res.json<any>();
-  const races = data?.MRData?.RaceTable?.Races || [];
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS sessions(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id INTEGER,
+      name TEXT,
+      start_at TEXT,
+      end_at TEXT,
+      created_at TEXT
+    )`
+  ).run();
 
-  for (const r of races) {
-    const round = Number(r.round);
-    const raceName: string = r.raceName;
-    const eventName = raceName;
-    const eventSlug = slugify(raceName.replace("Grand Prix", "gp"));
-    const circuitName = r.Circuit?.circuitName || null;
-    const lat = r.Circuit?.Location?.lat ? Number(r.Circuit.Location.lat) : null;
-    const lon = r.Circuit?.Location?.long ? Number(r.Circuit.Location.long) : null;
-    const country = r.Circuit?.Location?.country || null;
-    const locality = r.Circuit?.Location?.locality || null;
+  for (const race of races) {
+    const round = parseInt(race.round, 10);
+    const slug = String(race.raceName || race.raceName).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g,"") || `round-${round}`;
+    const start = new Date(`${race.date}T${race.time || "00:00:00Z"}`);
+    const end = new Date(start.getTime() + 3 * 60 * 60 * 1000);
 
-    const raceStart = parseErgastTime(r.date, r.time);
-    const raceEnd = addHours(raceStart, 2.5);
-    await upsertSession(env, {
-      uid: `2026:${round}:R`,
-      season: 2026,
+    await db.prepare(
+      `INSERT OR REPLACE INTO events(season,round,slug,name,circuit_name,locality,country,start_at,end_at,created_at)
+       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)`
+    ).bind(
+      season,
       round,
-      event_slug: eventSlug,
-      event_name: eventName,
-      session_name: "Carrera",
-      session_type: "R",
-      start_time: raceStart,
-      end_time: raceEnd,
-      circuit_name: circuitName,
-      circuit_lat: lat,
-      circuit_lon: lon,
-      country,
-      locality
-    });
+      slug,
+      race.raceName,
+      race.Circuit?.circuitName || "",
+      race.Circuit?.Location?.locality || "",
+      race.Circuit?.Location?.country || "",
+      start.toISOString(),
+      end.toISOString(),
+      new Date().toISOString()
+    ).run();
 
-    if (r.Qualifying?.date) {
-      const qStart = parseErgastTime(r.Qualifying.date, r.Qualifying.time);
-      await upsertSession(env, {
-        uid: `2026:${round}:Q`,
-        season: 2026,
-        round,
-        event_slug: eventSlug,
-        event_name: eventName,
-        session_name: "Clasificación",
-        session_type: "Q",
-        start_time: qStart,
-        end_time: addHours(qStart, 1.5),
-        circuit_name: circuitName,
-        circuit_lat: lat,
-        circuit_lon: lon,
-        country,
-        locality
-      });
-    }
+    // sessions: Practice/Quali/Race si existen
+    const ev = await db.prepare("SELECT id FROM events WHERE slug=?1").bind(slug).first<any>();
+    const eventId = ev?.id;
+    if (!eventId) continue;
 
-    const pmap = [
-      ["FirstPractice", "FP1", "Práctica 1"],
-      ["SecondPractice", "FP2", "Práctica 2"],
-      ["ThirdPractice", "FP3", "Práctica 3"]
-    ] as const;
+    await db.prepare("DELETE FROM sessions WHERE event_id=?1").bind(eventId).run();
 
-    for (const [key, st, name] of pmap) {
-      const v = (r as any)[key];
-      if (!v?.date) continue;
-      const start = parseErgastTime(v.date, v.time);
-      await upsertSession(env, {
-        uid: `2026:${round}:${st}`,
-        season: 2026,
-        round,
-        event_slug: eventSlug,
-        event_name: eventName,
-        session_name: name,
-        session_type: st,
-        start_time: start,
-        end_time: addHours(start, 1.25),
-        circuit_name: circuitName,
-        circuit_lat: lat,
-        circuit_lon: lon,
-        country,
-        locality
-      });
-    }
+    const add = async (name: string, date?: string, time?: string, durH = 1) => {
+      if (!date) return;
+      const st = new Date(`${date}T${time || "00:00:00Z"}`);
+      const en = new Date(st.getTime() + durH * 60 * 60 * 1000);
+      await db.prepare(
+        `INSERT INTO sessions(event_id,name,start_at,end_at,created_at)
+         VALUES (?1,?2,?3,?4,?5)`
+      ).bind(eventId, name, st.toISOString(), en.toISOString(), new Date().toISOString()).run();
+    };
 
-    if (r.Sprint?.date) {
-      const sStart = parseErgastTime(r.Sprint.date, r.Sprint.time);
-      await upsertSession(env, {
-        uid: `2026:${round}:S`,
-        season: 2026,
-        round,
-        event_slug: eventSlug,
-        event_name: eventName,
-        session_name: "Sprint",
-        session_type: "S",
-        start_time: sStart,
-        end_time: addHours(sStart, 1.0),
-        circuit_name: circuitName,
-        circuit_lat: lat,
-        circuit_lon: lon,
-        country,
-        locality
-      });
-    }
+    await add("Práctica 1", race.FirstPractice?.date, race.FirstPractice?.time, 1);
+    await add("Práctica 2", race.SecondPractice?.date, race.SecondPractice?.time, 1);
+    await add("Práctica 3", race.ThirdPractice?.date, race.ThirdPractice?.time, 1);
+    await add("Clasificación", race.Qualifying?.date, race.Qualifying?.time, 1);
+    await add("Carrera", race.date, race.time, 2);
   }
 
-  // Testing Bahrain (3 días)
-  const testing = [
-    { slug: "bahrain-testing-1", name: "Pre-Season Testing 1 (Baréin)", start: "2026-02-11" },
-    { slug: "bahrain-testing-2", name: "Pre-Season Testing 2 (Baréin)", start: "2026-02-18" }
-  ];
-
-  for (const t of testing) {
-    const days = [t.start, addDays(t.start, 1), addDays(t.start, 2)];
-    let i = 1;
-    for (const d of days) {
-      const start = new Date(`${d}T00:00:00Z`).toISOString();
-      const end = new Date(`${d}T23:59:59Z`).toISOString();
-      await upsertSession(env, {
-        uid: `2026:TEST:${t.slug}:D${i}`,
-        season: 2026,
-        round: null,
-        event_slug: t.slug,
-        event_name: t.name,
-        session_name: `Día ${i}`,
-        session_type: "TEST",
-        start_time: start,
-        end_time: end,
-        circuit_name: "Bahrain International Circuit",
-        circuit_lat: 26.0325,
-        circuit_lon: 50.5106,
-        country: "Bahrain",
-        locality: "Sakhir"
-      });
-      i += 1;
-    }
-  }
-
-  await setSync(env, "schedule", "ok");
-}
-
-async function getNow(env: Env) {
-  const nowIso = isoNow();
-  const last = await env.DB.prepare("SELECT * FROM sessions WHERE end_time < ?1 ORDER BY end_time DESC LIMIT 1")
-    .bind(nowIso).first<SessionRow>();
-
-  const current = await env.DB.prepare("SELECT * FROM sessions WHERE start_time <= ?1 AND end_time >= ?1 ORDER BY start_time ASC LIMIT 1")
-    .bind(nowIso).first<SessionRow>();
-
-  const next = await env.DB.prepare("SELECT * FROM sessions WHERE start_time > ?1 ORDER BY start_time ASC LIMIT 1")
-    .bind(nowIso).first<SessionRow>();
-
-  const today = await env.DB.prepare("SELECT * FROM sessions WHERE date(start_time) = date(?1) ORDER BY start_time ASC")
-    .bind(nowIso).all<SessionRow>();
-
-  return { now: nowIso, last, current, next, today: today.results || [] };
-}
-
-async function listSessions(env: Env, fromIso: string, toIso: string) {
-  const rows = await env.DB.prepare(
-    "SELECT * FROM sessions WHERE start_time >= ?1 AND start_time <= ?2 ORDER BY start_time ASC"
-  ).bind(fromIso, toIso).all<SessionRow>();
-  return rows.results || [];
-}
-
-async function listEvents(env: Env) {
-  const rows = await env.DB.prepare(
-    `SELECT event_slug, event_name,
-            MIN(start_time) AS start_time,
-            MAX(end_time)   AS end_time,
-            MAX(round)      AS round,
-            MAX(country)    AS country,
-            MAX(locality)   AS locality,
-            MAX(circuit_name) AS circuit_name
-     FROM sessions
-     WHERE season = 2026
-     GROUP BY event_slug, event_name
-     ORDER BY MIN(start_time) ASC`
-  ).all<any>();
-  return rows.results || [];
-}
-
-function hoursBetween(aIso: string, bIso: string) {
-  const a = new Date(aIso).getTime();
-  const b = new Date(bIso).getTime();
-  if (!isFinite(a) || !isFinite(b)) return 1e9;
-  return Math.abs(a - b) / 3600_000;
-}
-
-async function syncWeatherForEvent(env: Env, eventSlug: string) {
-  if (!env.OPENWEATHER_API_KEY) return;
-
-  const row = await env.DB.prepare(
-    "SELECT circuit_lat, circuit_lon FROM sessions WHERE event_slug = ?1 AND circuit_lat IS NOT NULL AND circuit_lon IS NOT NULL LIMIT 1"
-  ).bind(eventSlug).first<any>();
-
-  if (!row?.circuit_lat || !row?.circuit_lon) return;
-
-  const url = `${env.OPENWEATHER_BASE}/forecast?lat=${row.circuit_lat}&lon=${row.circuit_lon}&appid=${env.OPENWEATHER_API_KEY}&units=metric&lang=es`;
-  const res = await fetch(url, { cf: { cacheTtl: 600, cacheEverything: true } as any });
-  if (!res.ok) throw new Error(`weather fetch failed ${res.status}`);
-  const payload = await res.json<any>();
-
-  await env.DB.prepare("INSERT OR REPLACE INTO weather_cache (event_slug, fetched_at, payload) VALUES (?1, ?2, ?3)")
-    .bind(eventSlug, isoNow(), JSON.stringify(payload)).run();
-
-  await setSync(env, "weather", eventSlug);
+  await setMeta(db, "calendar_last_sync", new Date().toISOString());
 }
 
 async function syncWeather(env: Env) {
-  const { current, next } = await getNow(env);
-  const slug = (current?.event_slug || next?.event_slug);
-  if (!slug) return;
-  await syncWeatherForEvent(env, slug);
-}
+  const db = env.DB;
+  const key = env.OPENWEATHER_API_KEY;
+  if (!key) return;
 
-async function getEvent(env: Env, slug: string) {
-  const sessions = await env.DB.prepare(
-    "SELECT * FROM sessions WHERE event_slug = ?1 ORDER BY start_time ASC"
-  ).bind(slug).all<any>();
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS weather_cache(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      city TEXT,
+      country TEXT,
+      payload TEXT,
+      updated_at TEXT
+    )`
+  ).run();
 
-  let weatherRow = await env.DB.prepare(
-    "SELECT fetched_at, payload FROM weather_cache WHERE event_slug = ?1"
-  ).bind(slug).first<any>();
+  const evs = await db.prepare("SELECT locality,country FROM events WHERE season=2026").all<any>();
+  const seen = new Set<string>();
 
-  if (env.OPENWEATHER_API_KEY) {
-    const stale = !weatherRow?.fetched_at || hoursBetween(weatherRow.fetched_at, isoNow()) > 2;
-    if (stale) {
-      try {
-        await syncWeatherForEvent(env, slug);
-        weatherRow = await env.DB.prepare("SELECT fetched_at, payload FROM weather_cache WHERE event_slug = ?1").bind(slug).first<any>();
-      } catch (e) {
-        console.log("weather on-demand failed", slug, String(e));
-      }
+  const base = env.OPENWEATHER_BASE || "https://api.openweathermap.org/data/2.5";
+  for (const e of evs.results || []) {
+    const city = (e.locality || "").trim();
+    const country = (e.country || "").trim();
+    if (!city || !country) continue;
+    const k = `${city}|${country}`.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+
+    try{
+      const url = `${base}/forecast?q=${encodeURIComponent(city)},${encodeURIComponent(country)}&appid=${encodeURIComponent(key)}&units=metric&lang=es`;
+      const payload = await fetchTextSmart(url);
+      await db.prepare(
+        "INSERT INTO weather_cache(city,country,payload,updated_at) VALUES (?1,?2,?3,?4)"
+      ).bind(city, country, payload, new Date().toISOString()).run();
+    }catch{
+      // ignore
     }
   }
 
+  await setMeta(db, "weather_last_sync", new Date().toISOString());
+}
+
+async function getWeatherFor(env: Env, city: string, country: string) {
+  const db = env.DB;
+  const r = await db.prepare(
+    "SELECT payload,updated_at FROM weather_cache WHERE LOWER(city)=LOWER(?1) AND LOWER(country)=LOWER(?2) ORDER BY updated_at DESC LIMIT 1"
+  ).bind(city, country).first<any>();
+
+  if (!r?.payload) return null;
+
+  try {
+    const j = JSON.parse(r.payload);
+    return { city: j?.city?.name || city, updated_at: r.updated_at, raw: j };
+  } catch {
+    return null;
+  }
+}
+
+async function getGp(env: Env, slug: string) {
+  const db = env.DB;
+  const ev = await db.prepare("SELECT * FROM events WHERE slug=?1").bind(slug).first<any>();
+  if (!ev) return null;
+
+  const sess = await db.prepare("SELECT name,start_at,end_at FROM sessions WHERE event_id=?1 ORDER BY start_at ASC").bind(ev.id).all<any>();
+  const weather = await getWeatherFor(env, ev.locality, ev.country);
+
   return {
-    slug,
-    sessions: sessions.results || [],
-    weather: weatherRow?.payload ? JSON.parse(weatherRow.payload) : null,
-    weather_fetched_at: weatherRow?.fetched_at || null
+    event: ev,
+    sessions: (sess.results || []),
+    weather,
   };
 }
 
-async function listNews(env: Env, opts: { q: string; limit: number; offset: number }) {
-  const qRaw = (opts.q || "").trim().toLowerCase();
-  const q = qRaw === "all" ? "" : qRaw;
-  const like = `%${q}%`;
+async function listEvents(env: Env, season = 2026) {
+  const db = env.DB;
+  const r = await db.prepare(
+    "SELECT season,round,slug,name,circuit_name,locality,country,start_at,end_at FROM events WHERE season=?1 ORDER BY round ASC"
+  ).bind(season).all<any>();
+  return (r.results || []);
+}
 
-  const rows = await env.DB.prepare(
-    `SELECT a.title, a.url, a.published_at, a.snippet, a.auto_note, a.tags, a.image_url,
-            s.name as source_name, s.site_url as source_url
-     FROM articles a
-     JOIN news_sources s ON s.code = a.source_code
-     WHERE (?1 = '' OR
-            lower(a.title) LIKE ?2 OR
-            lower(a.snippet) LIKE ?2 OR
-            lower(a.tags) LIKE ?2 OR
-            lower(a.auto_note) LIKE ?2)
-     ORDER BY a.published_at DESC, a.id DESC
-     LIMIT ?3 OFFSET ?4`
-  ).bind(q, like, opts.limit, opts.offset).all<any>();
+function computeStatus(nowMs: number, sessions: any[]) {
+  const enriched = sessions.map((s) => {
+    const st = Date.parse(s.start_at);
+    const en = Date.parse(s.end_at);
+    const live = st <= nowMs && nowMs <= en;
+    const soon = nowMs < st && (st - nowMs) < 48 * 3600 * 1000;
+    return { ...s, live, soon };
+  });
 
-  // last update: max(published_at) visible
-  const last = await env.DB.prepare("SELECT MAX(published_at) AS max_pub FROM articles").first<any>();
+  const liveOne = enriched.find((s) => s.live);
+  if (liveOne) return { status: "live", sessions: enriched, next: liveOne };
 
-  return { items: rows.results || [], max_published_at: last?.max_pub || null };
+  const next = enriched.find((s) => s.soon) || enriched.find((s) => Date.parse(s.start_at) > nowMs);
+  if (next) return { status: "soon", sessions: enriched, next };
+
+  return { status: "panel", sessions: enriched, next: null };
+}
+
+async function nowEndpoint(env: Env) {
+  const db = env.DB;
+  const evs = await listEvents(env, 2026);
+
+  const nowMs = Date.now();
+  // evento actual: el más cercano cuyo inicio ya pasó o está por venir
+  let current = null;
+  let bestDist = Infinity;
+
+  for (const e of evs) {
+    const st = Date.parse(e.start_at);
+    const dist = Math.abs(st - nowMs);
+    if (dist < bestDist) {
+      bestDist = dist;
+      current = e;
+    }
+  }
+
+  let sessions: any[] = [];
+  let next_session: any = null;
+  let status = "panel";
+
+  if (current) {
+    const evDb = await db.prepare("SELECT id FROM events WHERE slug=?1").bind(current.slug).first<any>();
+    if (evDb?.id) {
+      const s = await db.prepare("SELECT name,start_at,end_at FROM sessions WHERE event_id=?1 ORDER BY start_at ASC").bind(evDb.id).all<any>();
+      const calc = computeStatus(nowMs, s.results || []);
+      status = calc.status;
+      sessions = calc.sessions;
+      next_session = calc.next;
+    }
+  }
+
+  const weather = current ? await getWeatherFor(env, current.locality, current.country) : null;
+
+  const last_sync = await getMeta(db, "calendar_last_sync");
+  const news_last = await getMeta(db, "news_last_sync");
+  const weather_last = await getMeta(db, "weather_last_sync");
+
+  const where_to_watch = [
+    "Streaming: Disney+ (según plan/disponibilidad)",
+    "TV/cable: ESPN / Fox Sports (según operador)",
+    "Operadores típicos: Flow, DirecTV, Telecentro, Movistar (puede variar)",
+  ];
+
+  return ok({
+    status,
+    current_event: current,
+    sessions,
+    next_session,
+    weather,
+    where_to_watch,
+    meta: { last_sync: last_sync || news_last || weather_last || null },
+  });
 }
 
 async function subscribe(env: Env, email: string) {
-  email = email.trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: "Email inválido" };
-  await env.DB.prepare("INSERT OR IGNORE INTO subscribers (email, locale) VALUES (?1, 'es-AR')").bind(email).run();
-  return { ok: true };
+  const db = env.DB;
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS subscribers(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE,
+      locale TEXT,
+      created_at TEXT
+    )`
+  ).run();
+
+  await db.prepare(
+    "INSERT OR IGNORE INTO subscribers(email,locale,created_at) VALUES (?1,'es-AR',?2)"
+  ).bind(email, new Date().toISOString()).run();
+
+  return ok({ subscribed: true });
 }
 
-async function sendAlerts(env: Env) {
-  if (!env.BREVO_API_KEY || !env.SENDER_EMAIL) return;
-
-  const now = new Date();
-  const from = new Date(now.getTime() + 72 * 3600_000).toISOString();
-  const to = new Date(now.getTime() + 96 * 3600_000).toISOString();
-
-  const sessions = await env.DB.prepare(
-    "SELECT * FROM sessions WHERE start_time >= ?1 AND start_time < ?2 ORDER BY start_time ASC"
-  ).bind(from, to).all<SessionRow>();
-
-  if (!sessions.results?.length) return;
-
-  const subs = await env.DB.prepare("SELECT email FROM subscribers").all<any>();
-  if (!subs.results?.length) return;
-
-  const lines = sessions.results.map(s => `• ${s.event_name} — ${s.session_name} (${s.start_time})`).join("\n");
-  const subject = "F1 (72h): cronograma + clima + dónde verlo";
-  const text =
-`Hola!\n
-En ~72 horas tenés esto:\n\n${lines}\n\n` +
-`Detalle (horarios ARG + clima + links): ${env.SITE_ORIGIN}/vivo\n\n` +
-`— Vamos Nene...!!!`;
-
-  for (const u of subs.results) {
-    await brevoSend(env, u.email, subject, text);
-  }
-
-  await setSync(env, "alerts", "sent");
-}
-
-async function brevoSend(env: Env, to: string, subject: string, text: string) {
-  const payload = {
-    sender: { name: "Vamos Nene...!!!", email: env.SENDER_EMAIL! },
-    to: [{ email: to }],
-    subject,
-    textContent: text
-  };
-
-  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: {
-      "accept": "application/json",
-      "content-type": "application/json",
-      "api-key": env.BREVO_API_KEY!
-    },
-    body: JSON.stringify(payload)
-  });
-
-  if (!res.ok) console.log("brevo send failed", res.status, await res.text());
-}
-
-async function handleAdminSync(req: Request, env: Env) {
+async function replay(env: Env, req: Request) {
   const url = new URL(req.url);
-  const key = url.searchParams.get("key") || "";
-  if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return json({ ok: false, error: "unauthorized" }, { status: 401 });
+  const driver = parseInt(url.searchParams.get("driver") || "43", 10);
+  const windowSec = Math.min(parseInt(url.searchParams.get("window") || "25", 10) || 25, 60);
 
-  await syncSchedule(env);
-  await syncNews(env);
-  await syncWeather(env);
-  return json({ ok: true });
+  // OpenF1: histórico gratis, realtime pago. :contentReference[oaicite:1]{index=1}
+  try{
+    // obtener sesión latest (puede fallar si es realtime)
+    const sessions = await fetchJson("https://api.openf1.org/v1/sessions?meeting_key=latest");
+    const s0 = Array.isArray(sessions) ? sessions[0] : null;
+    const session_key = s0?.session_key;
+    if(!session_key) return bad("no_session", 200, { note:"Sin sesión disponible para replay." });
+
+    const to = new Date();
+    const from = new Date(to.getTime() - windowSec * 1000);
+    const locUrl =
+      `https://api.openf1.org/v1/location?session_key=${encodeURIComponent(session_key)}&driver_number=${encodeURIComponent(driver)}&date>=${encodeURIComponent(from.toISOString())}`;
+
+    const loc = await fetchJson(locUrl);
+    if(!Array.isArray(loc) || !loc.length) return bad("no_points", 200, { note:"No llegaron puntos (quizá no hay histórico disponible ahora)." });
+
+    // Normalizar x/y a [0..1]
+    let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+    for(const p of loc){
+      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+    }
+    const dx = Math.max(1e-6, maxX - minX);
+    const dy = Math.max(1e-6, maxY - minY);
+
+    const points = loc.slice(-180).map((p:any)=>({
+      x: (p.x - minX)/dx,
+      y: (p.y - minY)/dy,
+      t: p.date,
+    }));
+
+    return ok({ session_key, points });
+  }catch(e:any){
+    // si es realtime paywall u otro error
+    return bad("replay_unavailable", 200, { note:"Replay no disponible ahora (puede requerir realtime pago o no hay datos históricos en este momento)." });
+  }
 }
 
-async function status(env: Env) {
-  const s = await getSync(env, "schedule");
-  const n = await getSync(env, "news");
-  const w = await getSync(env, "weather");
-  const a = await getSync(env, "alerts");
-
-  const counts = await env.DB.prepare(
-    "SELECT (SELECT COUNT(*) FROM sessions) AS sessions, (SELECT COUNT(*) FROM articles) AS articles, (SELECT COUNT(*) FROM subscribers) AS subs"
-  ).first<any>();
-
-  return {
-    now: isoNow(),
-    sync: {
-      schedule: s?.updated_at || null,
-      news: n?.updated_at || null,
-      weather: w?.updated_at || null,
-      alerts: a?.updated_at || null,
-    },
-    counts: counts || {}
-  };
+async function syncAll(env: Env) {
+  await ensureSchema(env.DB);
+  await syncCalendar(env, 2026);
+  await syncWeather(env);
+  await syncNews(env);
 }
 
 export default {
-  async fetch(req: Request, env: Env, ctx: ExecutionContext) {
+  async fetch(req: Request, env: Env) {
     const url = new URL(req.url);
-    if (req.method === "OPTIONS") return ok("", { status: 204 });
 
-    if (url.pathname === "/api/health") return json({ ok: true });
-    if (url.pathname === "/api/status") return json(await status(env));
-
-    if (url.pathname === "/api/now") return json(await getNow(env));
-
-    if (url.pathname === "/api/sessions") {
-      const from = url.searchParams.get("from");
-      const to = url.searchParams.get("to");
-      if (!from || !to) return json({ error: "missing_from_to" }, { status: 400 });
-      const items = await listSessions(env, from, to);
-      return json({ items, from, to });
-    }
-
-    if (url.pathname === "/api/news") {
-      const q = (url.searchParams.get("q") ?? "colapinto").trim();
-      const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "20", 10), 1), 50);
-      const offset = Math.max(parseInt(url.searchParams.get("offset") || "0", 10), 0);
-      const data = await listNews(env, { q, limit, offset });
-      return json({ ...data, q, limit, offset });
-    }
-
-    if (url.pathname === "/api/events") return json({ events: await listEvents(env) });
-
-    if (url.pathname === "/api/event") {
-      const slug = url.searchParams.get("slug") || "";
-      if (!slug) return json({ error: "missing_slug" }, { status: 400 });
-      return json(await getEvent(env, slug));
-    }
-
-    if (url.pathname === "/api/weather") {
-      const { current, next } = await getNow(env);
-      const slug = (current?.event_slug || next?.event_slug);
-      if (!slug) return json({ event_slug: null, weather: null });
-
-      const row = await env.DB.prepare("SELECT fetched_at, payload FROM weather_cache WHERE event_slug = ?1")
-        .bind(slug).first<any>();
-
-      return json({
-        event_slug: slug,
-        fetched_at: row?.fetched_at || null,
-        weather: row?.payload ? JSON.parse(row.payload) : null
+    // CORS simple
+    if (req.method === "OPTIONS") {
+      return new Response("", {
+        headers: {
+          "access-control-allow-origin": "*",
+          "access-control-allow-methods": "GET,POST,OPTIONS",
+          "access-control-allow-headers": "content-type",
+        },
       });
     }
 
-    if (url.pathname === "/api/subscribe" && req.method === "POST") {
-      const body = await req.json<any>().catch(() => ({}));
-      const email = String(body.email || "");
-      const r = await subscribe(env, email);
-      return json(r, { status: r.ok ? 200 : 400 });
+    try {
+      if (url.pathname === "/api/health") return ok({ ts: new Date().toISOString() });
+      if (url.pathname === "/api/now") return nowEndpoint(env);
+      if (url.pathname === "/api/news") return listNews(env, req);
+
+      if (url.pathname === "/api/events") {
+        const season = parseInt(url.searchParams.get("season") || "2026", 10);
+        const items = await listEvents(env, season);
+        return ok({ items });
+      }
+
+      if (url.pathname.startsWith("/api/gp/")) {
+        const slug = url.pathname.split("/").pop() || "";
+        const data = await getGp(env, slug);
+        if (!data) return bad("not_found", 404);
+        return ok(data);
+      }
+
+      if (url.pathname === "/api/subscribe" && req.method === "POST") {
+        const body = (await req.json().catch(() => ({}))) as Json;
+        const email = String(body.email || "").trim().toLowerCase();
+        if (!email || !email.includes("@")) return bad("invalid_email");
+        return subscribe(env, email);
+      }
+
+      if (url.pathname === "/api/replay") {
+        return replay(env, req);
+      }
+
+      if (url.pathname === "/api/admin/sync") {
+        const key = url.searchParams.get("key") || "";
+        if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return bad("unauthorized", 401);
+        await syncAll(env);
+        return ok({ synced: true });
+      }
+
+      return bad("not_found", 404);
+    } catch (e: any) {
+      return bad("server_error", 500, { message: String(e?.message || e) });
     }
-
-    if (url.pathname === "/api/admin/sync") return handleAdminSync(req, env);
-
-    return json({ error: "not_found" }, { status: 404 });
   },
 
-  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
-    const cron = controller.cron;
-    ctx.waitUntil((async () => {
-      try {
-        if (cron === "*/15 * * * *") {
-          await syncNews(env);
-          await syncWeather(env);
-        } else if (cron === "10 3 * * *") {
-          await syncSchedule(env);
-        } else if (cron === "20 12 * * *") {
-          await sendAlerts(env);
-        } else {
-          await syncWeather(env);
-        }
-      } catch (e) {
-        console.log("cron error", cron, String(e));
-      }
-    })());
-  }
+  async scheduled(_event: ScheduledEvent, env: Env) {
+    try {
+      await syncAll(env);
+    } catch {
+      // ignore
+    }
+  },
 };

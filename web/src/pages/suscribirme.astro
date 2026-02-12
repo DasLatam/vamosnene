@@ -2,52 +2,75 @@
 import Base from "../layouts/Base.astro";
 const api = import.meta.env.PUBLIC_API_BASE;
 ---
-<Base title="Suscribirme — Vamos Nene...!!!" description="Recibir avisos 72hs antes: cronograma ARG, dónde verlo y clima.">
-  <h1 style="margin: 10px 0 6px">Suscribirme</h1>
-  <p class="muted" style="margin:0">
-    Te avisamos <b>72hs antes</b>: cronograma (ARG), dónde verlo y pronóstico. (Gratis)
-  </p>
-
-  <div class="grid" style="margin-top:14px">
-    <div class="card">
-      <h2>Qué vas a recibir</h2>
-      <ul class="muted" style="margin:0;padding-left:18px">
-        <li>Cronograma del GP en horario ARG</li>
-        <li>Links útiles (oficiales) para verlo</li>
-        <li>Pronóstico y tips (ropa/horarios)</li>
-      </ul>
-    </div>
-
-    <div class="card">
-      <h2>Suscripción</h2>
-      <p class="muted" style="margin-top:0">Se guarda tu email en nuestra base (Cloudflare D1).</p>
-      <div class="hr"></div>
-      <form id="subForm">
-        <label class="muted">Email</label><br/>
-        <input id="email" type="email" required placeholder="tu@email.com"
-          style="width:100%;padding:12px;border-radius:14px;border:1px solid rgba(11,18,32,.20);margin-top:6px"/>
-        <div class="btns">
-          <button class="btn primary" type="submit">Suscribirme</button>
+<Base title="Suscribirme — Vamos Nene...!!!" description="Recibí avisos 72hs antes: cronograma, dónde verlo y pronóstico.">
+  <section class="hero">
+    <div class="heroInner">
+      <div>
+        <div class="kicker">🔔 Suscribirme</div>
+        <h1 class="h1">Suscribite a los avisos</h1>
+        <p class="p">
+          Te avisamos <b>72 horas antes</b>: cronograma (ARG), dónde verlo y pronóstico del circuito.
+          (En la versión gratis guardamos tu email. El envío se activa cuando conectemos un servicio de mail.)
+        </p>
+        <div class="actions">
+          <a class="btn" href="/vivo">🟣 Volver a Vivo</a>
+          <a class="btn alt" href="/noticias">📰 Noticias</a>
         </div>
-        <div id="msg" class="muted" style="margin-top:10px"></div>
+      </div>
+      <div>
+        <div class="card" style="height:100%;">
+          <div class="cardHeader">
+            <h2 class="cardTitle">Qué tipos de avisos</h2>
+            <p class="cardSub">Sin spam, solo lo útil.</p>
+          </div>
+          <div class="cardBody">
+            <ul style="margin:0;padding-left:18px;color:var(--muted);">
+              <li>Inicio de fin de semana: horarios ARG.</li>
+              <li>Previo de sesión: clima + dónde verlo.</li>
+              <li>Resumen post: links + lectura útil.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="card" style="margin-top:14px;">
+    <div class="cardHeader">
+      <h2 class="cardTitle">Formulario</h2>
+      <p class="cardSub">Guardamos tu email en la base (gratis).</p>
+    </div>
+    <div class="cardBody">
+      <form id="f" style="display:flex;gap:10px;flex-wrap:wrap;">
+        <input required type="email" name="email" placeholder="tu@email.com"
+          style="flex:1;min-width:260px;padding:12px 12px;border-radius:14px;border:1px solid var(--border);background:rgba(255,255,255,.8);" />
+        <button class="btn primary" type="submit">Suscribirme</button>
       </form>
-      <script type="module">
-        const api = ${JSON.stringify(String(api||""))};
-        const form = document.getElementById("subForm");
-        const email = document.getElementById("email");
-        const msg = document.getElementById("msg");
-        form.addEventListener("submit", async (e) => {
-          e.preventDefault();
-          msg.textContent = "Enviando…";
-          const r = await fetch(api + "/api/subscribe", {
-            method:"POST",
-            headers:{ "content-type":"application/json" },
-            body: JSON.stringify({ email: email.value })
-          });
-          const j = await r.json().catch(()=>({}));
-          msg.textContent = j.ok ? "Listo. Te vamos a avisar." : ("Error: " + (j.error || "no se pudo"));
-        });
-      </script>
+      <div class="small" id="msg" style="margin-top:10px;"></div>
     </div>
   </div>
+
+  <script is:inline>
+    const API = ${JSON.stringify(api)};
+    const f = document.getElementById("f");
+    const msg = document.getElementById("msg");
+    f.addEventListener("submit", async (e)=>{
+      e.preventDefault();
+      msg.textContent = "Guardando…";
+      const fd = new FormData(f);
+      const email = fd.get("email");
+      try{
+        const r = await fetch(`${API}/api/subscribe`, {
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({ email })
+        });
+        const j = await r.json();
+        msg.textContent = j.ok ? "Listo. Quedaste suscripto." : ("Error: " + (j.error||""));
+      }catch(err){
+        console.error(err);
+        msg.textContent = "Error conectando a la API.";
+      }
+    });
+  </script>
 </Base>

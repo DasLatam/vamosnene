@@ -1,22 +1,65 @@
 ---
 import Base from "../layouts/Base.astro";
 ---
-<Base title="Tienda — Vamos Nene...!!!" description="Merch Argentina: 43, celeste/blanco, Vamos Nene...!!!">
-  <h1 style="margin: 10px 0 6px">Tienda</h1>
-  <p class="muted" style="margin:0">
-    Merch con identidad ARG (#43). (V2) Checkout puede ser afiliados / impresión bajo demanda.
-  </p>
+<Base title="Tienda — Vamos Nene...!!!" description="Merch Argentina 43: remeras, buzos y gorras.">
+  <section class="hero">
+    <div class="heroInner">
+      <div>
+        <div class="kicker">🧢 Tienda · Merch</div>
+        <h1 class="h1">Tienda (Merch)</h1>
+        <p class="p">
+          Colección celeste y blanca con el <b>43</b> y “<b>Vamos Nene..!</b>”.
+          En esta etapa lo dejamos como <b>catálogo</b> (gratis) para validar interés.
+        </p>
+        <div class="actions">
+          <a class="btn primary" href="/suscribirme">🔔 Quiero avisos + merch</a>
+          <a class="btn" href="/vivo">🟣 Volver a Vivo</a>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="height:100%;">
+          <div class="cardHeader">
+            <h2 class="cardTitle">Cómo se monetiza</h2>
+            <p class="cardSub">Ads + referidos + ventas directas.</p>
+          </div>
+          <div class="cardBody" class="small">
+            Luego podemos sumar links de referidos a marketplaces o una tienda simple.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-  <div class="grid" style="margin-top:14px">
-    {["Remera","Buzo","Gorra"].map(p => (
-      <div class="card">
-        <h2 style="margin:0 0 8px">{p} “Vamos Nene…!!!”</h2>
-        <div class="kpi"><span class="dot"></span> Celeste/Blanco · #43</div>
-        <div class="hr"></div>
-        <div class="muted">Talles: S / M / L / XL · Colores: celeste / blanco</div>
-        <div class="btns">
-          <a class="btn primary" href="/contact">Quiero comprar</a>
-          <a class="btn alpine" href="/suscribirme">Avisame stock</a>
+  <div class="grid">
+    {[
+      { name:"Remera 43 (ARG)", desc:"Algodón · celeste/blanco · “Vamos Nene..!”", price:"ARS —", type:"Remera" },
+      { name:"Buzo 43 (ARG)", desc:"Canguro · celeste/blanco · edición invierno", price:"ARS —", type:"Buzo" },
+      { name:"Gorra 43 (ARG)", desc:"Bordado · celeste/blanco · regulable", price:"ARS —", type:"Gorra" },
+    ].map((p) => (
+      <div class="card cols-4">
+        <div class="cardHeader">
+          <h2 class="cardTitle">{p.name}</h2>
+          <p class="cardSub">{p.desc}</p>
+        </div>
+        <div class="cardBody">
+          <div class="badge">Tipo: {p.type}</div>
+          <div class="badge" style="margin-top:10px;">Precio: {p.price}</div>
+
+          <div style="display:grid;gap:10px;margin-top:12px;">
+            <label class="small">Talle
+              <select style="width:100%;padding:12px;border-radius:14px;border:1px solid var(--border);background:rgba(255,255,255,.8);">
+                <option>S</option><option>M</option><option>L</option><option>XL</option>
+              </select>
+            </label>
+
+            <label class="small">Color
+              <select style="width:100%;padding:12px;border-radius:14px;border:1px solid var(--border);background:rgba(255,255,255,.8);">
+                <option>Celeste</option><option>Blanco</option>
+              </select>
+            </label>
+
+            <a class="btn primary" href="/suscribirme">Me interesa (avisame)</a>
+          </div>
         </div>
       </div>
     ))}

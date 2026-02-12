@@ -1,75 +1,83 @@
 ---
 import Base from "../../layouts/Base.astro";
-const api = import.meta.env.PUBLIC_API_BASE || "";
+const api = import.meta.env.PUBLIC_API_BASE;
+
 const { slug } = Astro.params;
+const r = await fetch(`${api}/api/gp/${slug}`);
+const data = await r.json();
 
-const status = api ? await fetch(`${api}/api/status`).then(r => r.json()).catch(() => null) : null;
-const res = api ? await fetch(`${api}/api/event?slug=${encodeURIComponent(slug)}`) : null;
-const ev = res ? await res.json() : { sessions: [], weather: null };
-
-const tz = "America/Argentina/Buenos_Aires";
-function fmt(iso) {
-  if (!iso) return "-";
-  return new Intl.DateTimeFormat("es-AR", { dateStyle: "full", timeStyle: "short", timeZone: tz }).format(new Date(iso));
+function fmt(iso){
+  if(!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  return new Intl.DateTimeFormat("es-AR",{dateStyle:"full",timeStyle:"short",timeZone:"America/Argentina/Buenos_Aires"}).format(d);
 }
 ---
-<Base title={`${ev.sessions?.[0]?.event_name || slug} — Vamos Nene...!!!`} description="Detalle del evento: sesiones + horarios Argentina + clima del circuito + guía de transmisión.">
-  <h2>{ev.sessions?.[0]?.event_name || slug}</h2>
-  <p class="muted">{ev.sessions?.[0]?.circuit_name || ""} · {ev.sessions?.[0]?.locality || ""} · {ev.sessions?.[0]?.country || ""}</p>
-
-  <div class="card">
-    <p><strong>Qué vas a ver:</strong> sesiones oficiales con horario ARG, clima del circuito y links útiles.</p>
-    <p><strong>Fuentes:</strong> calendario (Ergast/Jolpica) · clima (OpenWeather) · noticias (RSS con crédito).</p>
-    <p class="muted">Actualización: calendario {status?.sync?.schedule ? fmt(status.sync.schedule) : "—"} · clima {status?.sync?.weather ? fmt(status.sync.weather) : "—"}.</p>
-  </div>
-
-  <div class="grid">
-    <div class="card">
-      <h3>Sesiones</h3>
-      {ev.sessions?.length ? (
-        <ul>
-          {ev.sessions.map((s) => (
-            <li style="margin:8px 0">
-              <strong>{s.session_name}</strong>
-              <div class="muted" style="font-size:12px">{fmt(s.start_time)} → {fmt(s.end_time)}</div>
-            </li>
-          ))}
-        </ul>
-      ) : <div class="muted">Sin sesiones.</div>}
-    </div>
-
-    <div class="card">
-      <h3>Clima</h3>
-      {ev.weather?.city?.name ? (
-        <div>
-          <div><strong>{ev.weather.city.name}</strong></div>
-          <div class="muted" style="font-size:12px">Actualizado: {ev.weather_fetched_at ? fmt(ev.weather_fetched_at) : "-"}</div>
-          <div class="muted" style="margin-top:10px">Forecast (cada 3h, 5 días). Tomalo como tendencia.</div>
+<Base title={`${data?.event?.name ?? "Gran Premio"} — Vamos Nene...!!!`} description="Detalle del Gran Premio: sesiones, clima y links útiles.">
+  <section class="hero">
+    <div class="heroInner">
+      <div>
+        <div class="kicker">🏁 Gran Premio</div>
+        <h1 class="h1">{data?.event?.name ?? "Gran Premio"}</h1>
+        <p class="p">{data?.event?.circuit_name} · {data?.event?.locality} · {data?.event?.country}</p>
+        <div class="actions">
+          <a class="btn primary" href="/vivo">🟣 Vivo</a>
+          <a class="btn" href="/calendario/2026">📅 Calendario</a>
+          <a class="btn alt" href="/suscribirme">🔔 Suscribirme</a>
         </div>
+      </div>
+      <div>
+        <div class="card" style="height:100%;">
+          <div class="cardHeader">
+            <h2 class="cardTitle">Clima</h2>
+            <p class="cardSub">Si está configurado OpenWeather, se muestra acá.</p>
+          </div>
+          <div class="cardBody">
+            {data.weather ? (
+              <div style="display:grid;gap:10px;">
+                <div class="badge">{data.weather.city}</div>
+                <div class="badge">Actualizado: {fmt(data.weather.updated_at)}</div>
+              </div>
+            ) : (
+              <div class="note">
+                <strong>Clima</strong>
+                <div>Si no hay datos, corré el sync admin y esperá el cron.</div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="card" style="margin-top:14px;">
+    <div class="cardHeader">
+      <h2 class="cardTitle">Sesiones (horario ARG)</h2>
+      <p class="cardSub">Tabla clara, sin texto plano.</p>
+    </div>
+    <div class="cardBody">
+      {data.sessions?.length ? (
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Sesión</th>
+              <th>Inicio</th>
+              <th>Fin</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.sessions.map((s) => (
+              <tr>
+                <td><b>{s.name}</b></td>
+                <td>{fmt(s.start_at)}</td>
+                <td>{fmt(s.end_at)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       ) : (
-        <div class="muted">Todavía no hay pronóstico cacheado para este evento. Si ya configuraste OpenWeather, recargá (el API intenta cachear on-demand) o corré el sync.</div>
+        <div class="small">Sin sesiones aún.</div>
       )}
-    </div>
-
-    <div class="card">
-      <h3>Dónde verlo</h3>
-      <ul>
-        <li><strong>Streaming:</strong> Disney+ (según plan/disponibilidad).</li>
-        <li><strong>TV / cable:</strong> señales deportivas (según operador).</li>
-        <li><strong>Operadores típicos:</strong> Flow, DirecTV, Telecentro, Movistar (puede variar).</li>
-      </ul>
-      <p class="muted">Confirmá disponibilidad en tu proveedor: cambia por temporada y plan.</p>
-    </div>
-  </div>
-
-  <div class="grid">
-    <div class="card">
-      <h3>Imagen (placeholder)</h3>
-      <img src="/img/colapinto.svg" alt="Colapinto placeholder" style="border-radius:14px;border:1px solid rgba(255,255,255,.12)"/>
-    </div>
-    <div class="card">
-      <h3>Alpine (placeholder)</h3>
-      <img src="/img/alpine.svg" alt="Alpine placeholder" style="border-radius:14px;border:1px solid rgba(255,255,255,.12)"/>
     </div>
   </div>
 </Base>

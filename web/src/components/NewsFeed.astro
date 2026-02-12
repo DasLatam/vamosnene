@@ -1,0 +1,152 @@
+---
+const api = import.meta.env.PUBLIC_API_BASE;
+const { initial = null, title = "Noticias" } = Astro.props;
+
+function esc(s){ return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
+function fmt(iso){
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  return new Intl.DateTimeFormat("es-AR", { dateStyle:"medium", timeStyle:"short", timeZone:"America/Argentina/Buenos_Aires" }).format(d);
+}
+const first = initial ?? { items: [], meta: { total: 0, offset: 0, limit: 12, last_sync: null } };
+---
+<div class="card">
+  <div class="cardHeader">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <div>
+        <h2 class="cardTitle">{title}</h2>
+        <p class="cardSub">Filtrado por “Colapinto” (título + texto). Imágenes cuando la fuente las publica.</p>
+      </div>
+      <div class="badge" id="lastSync">
+        Actualización: {first.meta?.last_sync ? fmt(first.meta.last_sync) : "—"}
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+      <input id="q" placeholder="Buscar (ej: Bahrain, Alpine, neumáticos)" style="flex:1;min-width:240px;padding:12px 12px;border-radius:14px;border:1px solid var(--border);background:rgba(255,255,255,.8);" />
+      <button class="btn" id="searchBtn" type="button">Buscar</button>
+      <a class="btn alt" href="https://www.f1latam.com/" rel="nofollow">Fuente destacada: F1Latam</a>
+    </div>
+  </div>
+
+  <div class="cardBody">
+    <div id="list" style="display:grid;gap:12px;"></div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px;">
+      <div class="small" id="counter"></div>
+      <button class="btn primary" id="moreBtn" type="button">Cargar más</button>
+    </div>
+  </div>
+</div>
+
+<script is:inline>
+  const API = ${JSON.stringify(api)};
+  const state = {
+    q: "",
+    offset: 0,
+    limit: 12,
+    total: ${JSON.stringify(first.meta?.total ?? 0)},
+    lastSync: ${JSON.stringify(first.meta?.last_sync ?? null)},
+    items: ${JSON.stringify(first.items ?? [])},
+    loading: false,
+  };
+
+  const $list = document.getElementById("list");
+  const $more = document.getElementById("moreBtn");
+  const $counter = document.getElementById("counter");
+  const $q = document.getElementById("q");
+  const $search = document.getElementById("searchBtn");
+  const $last = document.getElementById("lastSync");
+
+  function esc(s){
+    return String(s ?? "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;");
+  }
+
+  function fmt(iso){
+    if(!iso) return "";
+    const d = new Date(iso);
+    if(Number.isNaN(d.getTime())) return String(iso);
+    return new Intl.DateTimeFormat("es-AR",{dateStyle:"medium",timeStyle:"short",timeZone:"America/Argentina/Buenos_Aires"}).format(d);
+  }
+
+  function render(){
+    $list.innerHTML = state.items.map(n => {
+      const img = n.image_url ? `<img src="${esc(n.image_url)}" alt="${esc(n.title)}" loading="lazy">` : "";
+      const imgBox = `<div class="newsImg">${img}</div>`;
+
+      const note = n.auto_note ? `
+        <div class="note" style="margin-top:10px;">
+          <strong>Notas de la Redacción</strong>
+          <div>${esc(n.auto_note)}</div>
+        </div>` : "";
+
+      return `
+        <article class="newsCard">
+          ${imgBox}
+          <div>
+            <div class="small">
+              <a href="${esc(n.source_url)}" rel="nofollow">${esc(n.source_name)}</a>
+              · ${esc(fmt(n.published_at))}
+            </div>
+            <div style="font-weight:900;margin:6px 0;">
+              <a href="${esc(n.url)}" rel="nofollow">${esc(n.title)}</a>
+            </div>
+            ${n.snippet ? `<div class="small">${esc(n.snippet)}</div>` : ""}
+            ${note}
+            ${n.tags ? `<div class="small" style="margin-top:8px;">Tags: ${esc(n.tags)}</div>` : ""}
+          </div>
+        </article>
+      `;
+    }).join("");
+
+    const shown = state.items.length;
+    const total = state.total || shown;
+    $counter.textContent = `Mostrando ${shown} de ${total}.`;
+    $more.disabled = state.loading || (shown >= total);
+    $more.textContent = shown >= total ? "No hay más" : (state.loading ? "Cargando..." : "Cargar más");
+
+    if(state.lastSync){
+      $last.textContent = "Actualización: " + fmt(state.lastSync);
+      $last.classList.add("badge");
+    }
+  }
+
+  async function fetchPage(reset=false){
+    if(state.loading) return;
+    state.loading = true;
+    render();
+
+    try{
+      const q = state.q ? `&q=${encodeURIComponent(state.q)}` : "";
+      const url = `${API}/api/news?only_colapinto=1&limit=${state.limit}&offset=${state.offset}${q}`;
+      const r = await fetch(url, { headers: { "Accept": "application/json" }});
+      const j = await r.json();
+
+      state.total = j.meta?.total ?? (state.total || 0);
+      state.lastSync = j.meta?.last_sync ?? state.lastSync;
+
+      const newItems = Array.isArray(j.items) ? j.items : [];
+      state.items = reset ? newItems : state.items.concat(newItems);
+      state.offset = state.items.length;
+    }catch(e){
+      console.error(e);
+    }finally{
+      state.loading = false;
+      render();
+    }
+  }
+
+  $more.addEventListener("click", ()=>fetchPage(false));
+  $search.addEventListener("click", ()=>{
+    state.q = ($q.value || "").trim();
+    state.offset = 0;
+    fetchPage(true);
+  });
+
+  // Inicial
+  render();
+</script>
