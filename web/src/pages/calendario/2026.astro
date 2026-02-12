@@ -1,33 +1,38 @@
 ---
 import Base from "../../layouts/Base.astro";
-const api = import.meta.env.PUBLIC_API_BASE || "";
-const status = api ? await fetch(`${api}/api/status`).then(r => r.json()).catch(() => null) : null;
-const res = api ? await fetch(`${api}/api/events`) : null;
-const data = res ? await res.json() : { events: [] };
+const api = import.meta.env.PUBLIC_API_BASE;
 
-function fmt(iso) {
-  if (!iso) return "-";
-  return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(iso));
+const ev = await fetch(`${api}/api/events`).then(r=>r.json()).catch(()=>({events:[]}));
+const events = Array.isArray(ev.events) ? ev.events : [];
+
+function fmtAR(iso){
+  if(!iso) return "—";
+  const d = new Date(iso); if(isNaN(d.getTime())) return String(iso);
+  return new Intl.DateTimeFormat("es-AR", { dateStyle:"medium", timeZone:"America/Argentina/Buenos_Aires" }).format(d);
 }
 ---
-<Base title="Calendario 2026 — Vamos Nene...!!!" description="Calendario F1 2026: prácticas, clasificación, sprint y carrera con horarios en Argentina.">
-  <h2>Calendario 2026</h2>
-  <div class="card">
-    <p><strong>Qué vas a ver:</strong> lista de eventos con páginas por Gran Premio (sesiones + horarios ARG + clima).</p>
-    <p class="muted">Última actualización calendario: {status?.sync?.schedule ? fmt(status.sync.schedule) : "—"}.</p>
-  </div>
+<Base title="Calendario 2026 — Vamos Nene...!!!" description="Calendario F1 2026 en español con foco Argentina (#43).">
+  <h1 style="margin: 10px 0 6px">Calendario 2026</h1>
+  <p class="muted" style="margin:0">
+    Qué vas a ver: todos los Grandes Premios con link al detalle (horarios, clima, guía para verlo en ARG).
+  </p>
 
-  <div class="card">
-    {!api ? <div class="muted">Falta configurar <code>PUBLIC_API_BASE</code> en Cloudflare Pages.</div> : null}
-    {data.events?.length ? (
-      <ul>
-        {data.events.map((e) => (
-          <li style="margin:10px 0">
-            <a href={`/gran-premio/${e.event_slug}`}><strong>{e.event_name}</strong></a>
-            <div class="muted">{fmt(e.start_time)} → {fmt(e.end_time)} · {e.locality || ""} {e.country ? `(${e.country})` : ""}</div>
-          </li>
+  <div class="card" style="margin-top:14px">
+    <h2 style="margin:0 0 8px">Grandes Premios</h2>
+
+    {events.length ? (
+      <div class="grid" style="margin-top:12px">
+        {events.map(e => (
+          <a class="card" href={`/gran-premio/${e.event_slug}`} style="text-decoration:none">
+            <div class="kpi"><span class="dot"></span> {e.event_name}</div>
+            <div class="muted" style="margin-top:8px">Inicio: {fmtAR(e.start_time)}</div>
+            <div class="muted">País: {e.country || "—"} · Circuito: {e.circuit_name || "—"}</div>
+            <div class="btns"><span class="btn primary">Abrir detalle</span></div>
+          </a>
         ))}
-      </ul>
-    ) : <div class="muted">Todavía no hay eventos (corré el sync admin o esperá al cron).</div>}
+      </div>
+    ) : (
+      <div class="muted">Sin eventos aún. Corré sync admin.</div>
+    )}
   </div>
 </Base>

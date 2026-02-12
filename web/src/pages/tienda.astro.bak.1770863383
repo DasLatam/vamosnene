@@ -1,0 +1,73 @@
+---
+import Base from "../layouts/Base.astro";
+const api = import.meta.env.PUBLIC_API_BASE || "";
+const status = api ? await fetch(`${api}/api/status`).then(r => r.json()).catch(() => null) : null;
+
+function fmt(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(d);
+}
+---
+<Base title="Tienda — Vamos Nene...!!!" description="Merch celeste y blanco: 43 + Vamos Nene. Remeras, buzos y gorras (catálogo).">
+  <h2>Tienda</h2>
+
+  <div class="card">
+    <p><strong>Qué vas a ver:</strong> catálogo base (3 productos) con variantes de talle y color. El diseño es el mismo: celeste/blanco + <strong>43</strong> + “<strong>Vamos Nene..!</strong>”.</p>
+    <p class="muted">Actualización: {fmt(status?.now)} · Esto es catálogo; la compra se conectará a print-on-demand (sin stock).</p>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Remera</h3>
+      <img src="/img/colapinto.svg" alt="Remera Vamos Nene" style="border-radius:14px;border:1px solid rgba(255,255,255,.12);margin:10px 0" />
+      <div class="row">
+        <label class="muted">Talle</label>
+        <select style="padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:rgba(255,255,255,.92)">
+          <option>S</option><option>M</option><option>L</option><option>XL</option>
+        </select>
+        <label class="muted">Color</label>
+        <select style="padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:rgba(255,255,255,.92)">
+          <option>Celeste</option><option>Blanco</option><option>Negro</option>
+        </select>
+      </div>
+      <div class="muted" style="margin-top:10px">Compra: pronto (link externo)</div>
+      <a class="btn primary" href="/contact" style="margin-top:10px">Quiero este diseño</a>
+    </div>
+
+    <div class="card">
+      <h3>Buzo</h3>
+      <img src="/img/alpine.svg" alt="Buzo Vamos Nene" style="border-radius:14px;border:1px solid rgba(255,255,255,.12);margin:10px 0" />
+      <div class="row">
+        <label class="muted">Talle</label>
+        <select style="padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:rgba(255,255,255,.92)">
+          <option>S</option><option>M</option><option>L</option><option>XL</option>
+        </select>
+        <label class="muted">Color</label>
+        <select style="padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:rgba(255,255,255,.92)">
+          <option>Celeste</option><option>Blanco</option><option>Azul (Alpine)</option><option>Rosa (Alpine)</option>
+        </select>
+      </div>
+      <div class="muted" style="margin-top:10px">Compra: pronto (link externo)</div>
+      <a class="btn primary" href="/contact" style="margin-top:10px">Quiero este diseño</a>
+    </div>
+
+    <div class="card">
+      <h3>Gorra</h3>
+      <img src="/img/colapinto.svg" alt="Gorra Vamos Nene" style="border-radius:14px;border:1px solid rgba(255,255,255,.12);margin:10px 0" />
+      <div class="row">
+        <label class="muted">Talle</label>
+        <select style="padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:rgba(255,255,255,.92)">
+          <option>Único</option>
+        </select>
+        <label class="muted">Color</label>
+        <select style="padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:rgba(255,255,255,.92)">
+          <option>Celeste</option><option>Blanco</option><option>Negro</option>
+        </select>
+      </div>
+      <div class="muted" style="margin-top:10px">Compra: pronto (link externo)</div>
+      <a class="btn primary" href="/contact" style="margin-top:10px">Quiero este diseño</a>
+    </div>
+  </div>
+</Base>

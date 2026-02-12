@@ -1,34 +1,113 @@
 ---
 import Base from "../layouts/Base.astro";
+const api = import.meta.env.PUBLIC_API_BASE;
+
+const now = await fetch(`${api}/api/now`).then(r=>r.json()).catch(()=>({}));
+const newsAll = await fetch(`${api}/api/news`).then(r=>r.json()).catch(()=>({items:[]}));
+const items = Array.isArray(newsAll.items) ? newsAll.items : [];
+
+// filtro “Colapinto” en cualquier parte (title/snippet/tags)
+const col = items.filter(it => {
+  const s = `${it.title||""} ${it.snippet||""} ${it.tags||""}`.toLowerCase();
+  return s.includes("colapinto") || s.includes("franco colapinto");
+}).slice(0,6);
+
+function fmtAR(iso){
+  if(!iso) return "—";
+  const d = new Date(iso); if(isNaN(d.getTime())) return String(iso);
+  return new Intl.DateTimeFormat("es-AR", { dateStyle:"full", timeStyle:"short", timeZone:"America/Argentina/Buenos_Aires" }).format(d);
+}
+
+const current = now?.current || null;
+const next = now?.next || null;
+
+const status = current ? "EN VIVO" : (next ? "PRÓXIMO" : "SIN DATOS");
+const headline = current ? `${current.event_name}: ${current.session_name}` : (next ? `${next.event_name}: ${next.session_name}` : "Calendario 2026 + noticias");
+const when = current ? `${fmtAR(current.start_time)} → ${fmtAR(current.end_time)}` : (next ? `${fmtAR(next.start_time)} (ARG)` : "—");
 ---
-<Base title="Vamos Nene...!!! — F1 en castellano">
-  <h1>F1 en castellano, sin fricción</h1>
-  <p class="muted">Calendario 2026 + clima del circuito + noticias con contexto. “Live” = estado + cuenta regresiva + forecast.</p>
+<Base title="Vamos Nene...!!! — Centro argentino de F1" description="Qué pasa hoy en F1, horarios ARG, dónde verlo y noticias (Colapinto).">
+  <section class="hero">
+    <img src="/assets/hero-vn.svg" alt="Vamos Nene...!!!" loading="eager" />
+    <div class="heroBody">
+      <h1 class="h1">Centro argentino de F1 (foco Colapinto)</h1>
+      <p class="sub">Entrás y en 10 segundos sabés: <b>qué hay hoy</b>, <b>a qué hora (ARG)</b>, <b>dónde verlo</b> y <b>qué significa</b>.</p>
+      <div class="kpis">
+        <span class="kpi"><span class="dot"></span> {status}</span>
+        <span class="kpi"><span class="dot"></span> {headline}</span>
+        <span class="kpi"><span class="dot"></span> {when}</span>
+      </div>
+      <div class="btns">
+        <a class="btn primary" href="/vivo">Abrir VIVO</a>
+        <a class="btn" href="/calendario/2026">Calendario 2026</a>
+        <a class="btn alpine" href="/guias/como-ver-f1-en-argentina">Dónde verlo (ARG)</a>
+      </div>
+      <p class="muted" style="margin-top:10px">Actualizado: {fmtAR(now?.now)}</p>
+    </div>
+  </section>
 
-  <div class="grid">
+  <section class="grid">
     <div class="card">
-      <h2>Live</h2>
-      <p>Lo que pasó, lo que está pasando y lo que viene (horarios ARG).</p>
-      <a class="btn primary" href="/vivo">Ir a Live</a>
-    </div>
-    <div class="card">
-      <h2>Calendario</h2>
-      <p>Prácticas, clasificación, sprint y carrera. Testing incluido.</p>
-      <a class="btn" href="/calendario/2026">Ver calendario 2026</a>
-    </div>
-    <div class="card">
-      <h2>Noticias</h2>
-      <p>Titular + fuente + link, con un párrafo de redacción automático.</p>
-      <a class="btn" href="/noticias">Ver noticias</a>
-    </div>
-  </div>
+      <h2>Hoy / Próximo</h2>
+      <p class="muted" style="margin-top:0">Esto es lo que mirás antes de abrir “Vivo”.</p>
+      <div class="hr"></div>
 
-  <div class="card">
-    <h2>Arranque rápido</h2>
-    <ol>
-      <li>Publicá el Worker (API) + D1.</li>
-      <li>Publicá el sitio en Pages (SSR).</li>
-      <li>Entrá a <code>/live</code> y corré el sync admin una vez.</li>
-    </ol>
-  </div>
+      {current ? (
+        <>
+          <div><b>Ahora:</b> {current.event_name} — {current.session_name}</div>
+          <div class="muted">{fmtAR(current.start_time)} → {fmtAR(current.end_time)}</div>
+        </>
+      ) : (
+        <div class="muted">No hay sesión en curso.</div>
+      )}
+
+      <div class="hr"></div>
+
+      {next ? (
+        <>
+          <div><b>Próximo:</b> {next.event_name} — {next.session_name}</div>
+          <div class="muted">{fmtAR(next.start_time)} (ARG)</div>
+        </>
+      ) : (
+        <div class="muted">Sin próximo evento cargado.</div>
+      )}
+
+      <div class="btns">
+        <a class="btn primary" href="/vivo">Ver dashboard</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Noticias (Colapinto)</h2>
+      <p class="muted" style="margin-top:0">Titulares + una nota editorial corta para entender el impacto.</p>
+      <div class="hr"></div>
+
+      {col.length ? (
+        <ol class="muted" style="margin:0;padding-left:18px">
+          {col.map(n => (
+            <li style="margin:10px 0">
+              <a href="/noticias">{n.title}</a>
+              <div class="muted" style="font-size:12px">{n.source_name || n.source_code || ""}</div>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <div class="muted">Todavía no hay suficientes noticias filtradas por “Colapinto”.</div>
+      )}
+
+      <div class="btns">
+        <a class="btn primary" href="/noticias">Ver todas</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Contenido “Google-friendly” (para AdSense)</h2>
+      <p class="muted" style="margin-top:0">Páginas evergreen que generan tráfico orgánico y tiempo de lectura.</p>
+      <div class="hr"></div>
+      <ul class="muted" style="margin:0;padding-left:18px">
+        <li><a href="/colapinto">Colapinto: bio + timeline</a></li>
+        <li><a href="/guias/como-ver-f1-en-argentina">Cómo ver F1 en Argentina</a></li>
+        <li><a href="/guias/glosario-f1">Glosario F1</a></li>
+      </ul>
+    </div>
+  </section>
 </Base>

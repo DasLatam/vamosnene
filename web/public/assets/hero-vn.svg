@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420">
+  <defs>
+    <linearGradient id="sky" x1="0" x2="1">
+      <stop offset="0" stop-color="#67B7FF"/><stop offset="1" stop-color="#A9DDFF"/>
+    </linearGradient>
+    <linearGradient id="alp" x1="0" x2="1">
+      <stop offset="0" stop-color="#1fa3ff"/><stop offset="1" stop-color="#ff4fd8"/>
+    </linearGradient>
+    <pattern id="chk" width="28" height="28" patternUnits="userSpaceOnUse">
+      <rect width="14" height="14" fill="#0b1220"/><rect x="14" y="14" width="14" height="14" fill="#0b1220"/>
+      <rect x="14" width="14" height="14" fill="#ffffff"/><rect y="14" width="14" height="14" fill="#ffffff"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="420" rx="28" fill="#ffffff"/>
+  <rect x="22" y="22" width="1156" height="376" rx="22" fill="url(#sky)" opacity="0.55"/>
+  <rect x="22" y="62" width="1156" height="12" fill="#ffffff" opacity="0.95"/>
+  <rect x="22" y="74" width="1156" height="12" fill="#67B7FF" opacity="0.95"/>
+
+  <!-- sol -->
+  <circle cx="1020" cy="112" r="30" fill="#ffcc33"/>
+  <g fill="#ffcc33" opacity="0.9">
+    <path d="M1020 58l6 24h-12z"/><path d="M1020 166l6-24h-12z"/>
+    <path d="M966 112l24 6v-12z"/><path d="M1074 112l-24 6v-12z"/>
+  </g>
+
+  <!-- tablero oscuro tipo broadcast -->
+  <rect x="60" y="120" width="430" height="240" rx="18" fill="#0b1220"/>
+  <rect x="60" y="120" width="430" height="18" fill="url(#alp)" opacity="0.9"/>
+  <rect x="88" y="160" width="374" height="36" rx="10" fill="rgba(255,255,255,0.08)"/>
+  <rect x="88" y="212" width="374" height="36" rx="10" fill="rgba(255,255,255,0.08)"/>
+  <rect x="88" y="264" width="374" height="36" rx="10" fill="rgba(255,255,255,0.08)"/>
+  <rect x="88" y="316" width="240" height="36" rx="10" fill="rgba(103,183,255,0.25)"/>
+
+  <!-- checkered corner -->
+  <rect x="840" y="240" width="300" height="140" rx="18" fill="url(#chk)" opacity="0.25"/>
+  <rect x="840" y="240" width="300" height="12" fill="url(#alp)" opacity="0.8"/>
+
+  <text x="90" y="192" font-family="system-ui,Segoe UI,Roboto" font-weight="800" font-size="22" fill="rgba(255,255,255,0.88)">Hoy / Próximo</text>
+  <text x="90" y="244" font-family="system-ui,Segoe UI,Roboto" font-weight="800" font-size="22" fill="rgba(255,255,255,0.88)">Dónde verlo (ARG)</text>
+  <text x="90" y="296" font-family="system-ui,Segoe UI,Roboto" font-weight="800" font-size="22" fill="rgba(255,255,255,0.88)">Clima + horarios</text>
+  <text x="90" y="348" font-family="system-ui,Segoe UI,Roboto" font-weight="900" font-size="22" fill="#ffffff">VIVO</text>
+
+  <text x="740" y="170" font-family="system-ui,Segoe UI,Roboto" font-weight="950" font-size="62" fill="#0b1220">43</text>
+  <text x="740" y="214" font-family="system-ui,Segoe UI,Roboto" font-weight="800" font-size="22" fill="rgba(11,18,32,0.75)">Vamos Nene...!!!</text>
+  <text x="740" y="246" font-family="system-ui,Segoe UI,Roboto" font-weight="700" font-size="16" fill="rgba(11,18,32,0.7)">Centro argentino de F1 · foco Colapinto</text>
+</svg>

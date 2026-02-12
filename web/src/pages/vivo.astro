@@ -1,210 +1,155 @@
 ---
 import Base from "../layouts/Base.astro";
-const api = import.meta.env.PUBLIC_API_BASE || "";
+const api = import.meta.env.PUBLIC_API_BASE;
 
-async function safeJson(url) {
-  try { const r = await fetch(url); return await r.json(); } catch { return null; }
+const now = await fetch(`${api}/api/now`).then(r=>r.json()).catch(()=>({}));
+const weather = await fetch(`${api}/api/weather`).then(r=>r.json()).catch(()=>({}));
+const newsAll = await fetch(`${api}/api/news`).then(r=>r.json()).catch(()=>({items:[]}));
+const items = Array.isArray(newsAll.items) ? newsAll.items : [];
+
+const focus = items.filter(it=>{
+  const s = `${it.title||""} ${it.snippet||""} ${it.tags||""}`.toLowerCase();
+  return s.includes("colapinto") || s.includes("alpine");
+}).slice(0,8);
+
+function fmtAR(iso){
+  if(!iso) return "—";
+  const d = new Date(iso); if(isNaN(d.getTime())) return String(iso);
+  return new Intl.DateTimeFormat("es-AR", { dateStyle:"medium", timeStyle:"short", timeZone:"America/Argentina/Buenos_Aires" }).format(d);
 }
+const current = now?.current || null;
+const next = now?.next || null;
+const live = !!current;
+const title = live ? `${current.event_name} — ${current.session_name}` : (next ? `${next.event_name} — ${next.session_name}` : "Vivo");
+const updated = fmtAR(now?.now);
 
-const status = api ? await safeJson(`${api}/api/status`) : null;
-const now = api ? await safeJson(`${api}/api/now`) : null;
-
-// sesiones próximas 7 días
-const from = new Date().toISOString();
-const to = new Date(Date.now() + 7*24*3600*1000).toISOString();
-const sessionsResp = api ? await safeJson(`${api}/api/sessions?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`) : null;
-const sessions = sessionsResp?.items || [];
-
-const weather = api ? await safeJson(`${api}/api/weather`) : null;
-const news = api ? await safeJson(`${api}/api/news?q=colapinto&limit=10&offset=0`) : null;
-
-const tz = "America/Argentina/Buenos_Aires";
-const dkey = (iso) => new Intl.DateTimeFormat("en-CA", { timeZone: tz, year:"numeric", month:"2-digit", day:"2-digit" }).format(new Date(iso));
-const todayKey = dkey(new Date().toISOString());
-const tomorrowKey = dkey(new Date(Date.now() + 24*3600*1000).toISOString());
-
-const todaySessions = sessions.filter(s => dkey(s.start_time) === todayKey);
-const tomorrowSessions = sessions.filter(s => dkey(s.start_time) === tomorrowKey);
-const nextSessions = sessions.filter(s => dkey(s.start_time) !== todayKey && dkey(s.start_time) !== tomorrowKey).slice(0, 12);
-
-function fmt(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return String(iso);
-  return new Intl.DateTimeFormat("es-AR", { dateStyle: "full", timeStyle: "short", timeZone: tz }).format(d);
-}
-
-function dayLabel(key) {
-  if (key === todayKey) return "Hoy";
-  if (key === tomorrowKey) return "Mañana";
-  return "Próximamente";
-}
-
-function whereToWatchBlock() {
-  return `
-    <ul>
-      <li><strong>Streaming:</strong> Disney+ (según plan/disponibilidad).</li>
-      <li><strong>TV / cable:</strong> señales deportivas (según operador).</li>
-      <li><strong>Operadores típicos:</strong> Flow, DirecTV, Telecentro, Movistar (puede variar).</li>
-    </ul>
-    <p class="muted">Nota: la disponibilidad cambia por temporada y proveedor. Confirmá en tu grilla o app.</p>
-  `;
-}
-
-function summarizeForecast(payload) {
-  if (!payload?.list?.length) return [];
-  const groups = new Map();
-  for (const it of payload.list) {
-    const key = dkey(it.dt_txt || new Date(it.dt*1000).toISOString());
-    const t = it.main?.temp;
-    const icon = it.weather?.[0]?.icon;
-    const desc = it.weather?.[0]?.description;
-    if (!groups.has(key)) groups.set(key, { key, min: t, max: t, icon, desc });
-    const g = groups.get(key);
-    if (typeof t === "number") {
-      g.min = Math.min(g.min ?? t, t);
-      g.max = Math.max(g.max ?? t, t);
-    }
-    // keep first icon/desc
-  }
-  return Array.from(groups.values()).slice(0, 5);
-}
-const daily = summarizeForecast(weather?.weather);
+const w = weather?.weather;
 ---
-<Base title="Vivo — Vamos Nene...!!!" description="Contexto en vivo: agenda (hoy/mañana), horarios ARG, clima del circuito y noticias (Colapinto).">
-  <h2>Contexto en vivo</h2>
+<Base title={`Vivo — ${title}`} description="Dashboard argentino: qué pasa hoy, clima, horarios y contexto.">
+  <h1 style="margin: 10px 0 6px">Vivo</h1>
+  <p class="muted" style="margin:0">
+    Esto es un “pit wall” argentino: <b>estado</b>, <b>horarios ARG</b>, <b>dónde verlo</b>, <b>clima</b> y <b>noticias del día</b>.
+  </p>
 
-  <div class="card">
-    <p><strong>Qué vas a ver:</strong> agenda (hoy/mañana/próximamente), horarios en Argentina, clima del circuito y noticias relevantes.</p>
-    <p><strong>Fuentes consultadas:</strong> calendario (Ergast/Jolpica), clima (OpenWeather), noticias (RSS con crédito por fuente).</p>
-    <p class="muted">
-      Última actualización: calendario {status?.sync?.schedule ? fmt(status.sync.schedule) : "—"} ·
-      noticias {status?.sync?.news ? fmt(status.sync.news) : "—"} ·
-      clima {status?.sync?.weather ? fmt(status.sync.weather) : "—"}.
-    </p>
+  <div class="dash" style="margin-top:14px">
+    <div class="dashTop">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+        <span class="pillD">{live ? "🟢 EN VIVO" : "🟡 PRÓXIMO"}</span>
+        <span class="pillD"><b>{title}</b></span>
+        <span class="pillD">Actualizado: <span class="mono">{updated}</span></span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+        <span class="pillD">ARG</span>
+        <span class="pillD">#43</span>
+      </div>
+    </div>
+
+    <div class="dashBody">
+      <!-- IZQ: “tabla” -->
+      <aside class="dashCol">
+        <div class="pillD" style="margin-bottom:10px">Resumen de jornada</div>
+        <div class="list">
+          <div class="rowD">
+            <div>
+              <div class="tag">Ahora</div>
+              <div style="opacity:.78;font-size:12px">{current ? current.session_name : "—"}</div>
+            </div>
+            <div class="mono">{current ? fmtAR(current.start_time).split(", ").pop() : "—"}</div>
+          </div>
+
+          <div class="rowD">
+            <div>
+              <div class="tag">Próximo</div>
+              <div style="opacity:.78;font-size:12px">{next ? next.session_name : "—"}</div>
+            </div>
+            <div class="mono">{next ? fmtAR(next.start_time).split(", ").pop() : "—"}</div>
+          </div>
+
+          <div class="rowD">
+            <div>
+              <div class="tag">Dónde verlo</div>
+              <div style="opacity:.78;font-size:12px">Guía (ARG)</div>
+            </div>
+            <a class="pillD" href="/guias/como-ver-f1-en-argentina">Abrir</a>
+          </div>
+
+          <div class="rowD">
+            <div>
+              <div class="tag">Calendario</div>
+              <div style="opacity:.78;font-size:12px">Temporada 2026</div>
+            </div>
+            <a class="pillD" href="/calendario/2026">Ver</a>
+          </div>
+        </div>
+      </aside>
+
+      <!-- CENTRO: “visual” (placeholder listo para track map real cuando haya feed) -->
+      <section class="dashCol">
+        <div class="pillD" style="margin-bottom:10px">Centro (visual)</div>
+        <div class="rowD" style="justify-content:space-between">
+          <div>
+            <div class="tag">Mapa / Track</div>
+            <div style="opacity:.78;font-size:12px">Cuando haya feed, acá va el track map tipo f1-dash</div>
+          </div>
+          <div class="bigTime">{live ? "LIVE" : "NEXT"}</div>
+        </div>
+        <div style="margin-top:12px;opacity:.9;font-size:13px">
+          <b>Qué vas a ver acá (V2):</b>
+          <ul style="margin:8px 0 0;padding-left:18px;opacity:.82">
+            <li>Track map + puntos (si hay datos)</li>
+            <li>Tabla izquierda con “estado” y foco #43</li>
+            <li>Contexto derecha: clima + titulares del día</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- DER: contexto -->
+      <aside class="dashCol">
+        <div class="pillD" style="margin-bottom:10px">Contexto</div>
+
+        <div class="rowD">
+          <div>
+            <div class="tag">Clima</div>
+            <div style="opacity:.78;font-size:12px">{weather?.event_slug || "—"}</div>
+          </div>
+          <div class="mono">{w ? "OK" : "—"}</div>
+        </div>
+
+        <div style="margin-top:12px" class="pillD">Titulares (Colapinto/Alpine)</div>
+        <div class="list" style="margin-top:10px">
+          {focus.length ? focus.slice(0,5).map(n => (
+            <a class="rowD" href="/noticias" style="text-decoration:none">
+              <div style="min-width:0">
+                <div style="font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{n.title}</div>
+                <div style="opacity:.72;font-size:12px">{n.source_name || n.source_code || ""}</div>
+              </div>
+              <span class="pillD">→</span>
+            </a>
+          )) : (
+            <div style="opacity:.78;font-size:12px">Sin suficientes items filtrados.</div>
+          )}
+        </div>
+      </aside>
+    </div>
   </div>
 
   <div class="grid">
     <div class="card">
-      <h3>Ahora / Próximo</h3>
-      {now?.current ? (
-        <div>
-          <div><strong>{now.current.event_name}</strong></div>
-          <div class="muted">{now.current.session_name} · {fmt(now.current.start_time)} → {fmt(now.current.end_time)}</div>
-        </div>
-      ) : (
-        <div class="muted">No hay sesión en vivo ahora.</div>
-      )}
-      <div style="margin-top:10px">
-        {now?.next ? (
-          <div>
-            <div class="muted">Próximo:</div>
-            <div><strong>{now.next.event_name}</strong></div>
-            <div class="muted">{now.next.session_name} · {fmt(now.next.start_time)}</div>
-            <a class="btn" href={`/gran-premio/${now.next.event_slug}`} style="margin-top:10px">Ver detalle</a>
-          </div>
-        ) : null}
+      <h2>Qué es “Vivo”</h2>
+      <p class="muted" style="margin-top:0">
+        Un panel para quedarte: refresca contexto (no sólo links). Próximo paso: track map real cuando haya fuente viable sin USD.
+      </p>
+      <div class="btns">
+        <a class="btn primary" href="/suscribirme">Recibir avisos (72hs antes)</a>
+        <a class="btn alpine" href="/noticias">Noticias del día</a>
       </div>
     </div>
 
     <div class="card">
-      <h3>Dónde verlo</h3>
-      <div set:html={whereToWatchBlock()} />
-    </div>
-
-    <div class="card">
-      <h3>Clima (tendencia)</h3>
-      {weather?.weather?.city?.name ? (
-        <div>
-          <div><strong>{weather.weather.city.name}</strong></div>
-          <div class="muted">Actualizado: {weather.fetched_at ? fmt(weather.fetched_at) : "—"}</div>
-          <div style="margin-top:10px">
-            {daily.map(d => (
-              <div class="row" style="justify-content:space-between;margin:6px 0">
-                <div>
-                  <strong>{dayLabel(d.key)}</strong> <span class="muted">({d.key})</span>
-                </div>
-                <div class="row" style="gap:8px">
-                  {d.icon ? <img src={`https://openweathermap.org/img/wn/${d.icon}@2x.png`} width="34" height="34" alt={d.desc || "clima"} /> : null}
-                  <span>{Math.round(d.min)}° / {Math.round(d.max)}°</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div class="muted">Todavía no hay pronóstico cacheado para el evento actual/próximo.</div>
-      )}
-    </div>
-  </div>
-
-  <div class="grid">
-    <div class="card">
-      <h3>Agenda — Hoy</h3>
-      {todaySessions.length ? (
-        <ul>
-          {todaySessions.map(s => (
-            <li style="margin:10px 0">
-              <strong>{s.event_name}</strong> — {s.session_name}
-              <div class="muted" style="font-size:12px">{fmt(s.start_time)} → {fmt(s.end_time)}</div>
-            </li>
-          ))}
-        </ul>
-      ) : <div class="muted">No hay sesiones hoy en la ventana de los próximos 7 días.</div>}
-    </div>
-
-    <div class="card">
-      <h3>Agenda — Mañana</h3>
-      {tomorrowSessions.length ? (
-        <ul>
-          {tomorrowSessions.map(s => (
-            <li style="margin:10px 0">
-              <strong>{s.event_name}</strong> — {s.session_name}
-              <div class="muted" style="font-size:12px">{fmt(s.start_time)} → {fmt(s.end_time)}</div>
-            </li>
-          ))}
-        </ul>
-      ) : <div class="muted">No hay sesiones mañana en la ventana de los próximos 7 días.</div>}
-    </div>
-
-    <div class="card">
-      <h3>Próximamente</h3>
-      {nextSessions.length ? (
-        <ul>
-          {nextSessions.map(s => (
-            <li style="margin:10px 0">
-              <a href={`/gran-premio/${s.event_slug}`}><strong>{s.event_name}</strong></a> — {s.session_name}
-              <div class="muted" style="font-size:12px">{fmt(s.start_time)}</div>
-            </li>
-          ))}
-        </ul>
-      ) : <div class="muted">Sin próximas sesiones.</div>}
-    </div>
-  </div>
-
-  <div class="card">
-    <h3>Noticias (Colapinto)</h3>
-    {news?.items?.length ? (
-      <ul>
-        {news.items.slice(0,8).map(n => (
-          <li style="margin:10px 0">
-            <a href={n.url} rel="nofollow noopener noreferrer" target="_blank">{n.title}</a>
-            <div class="muted" style="font-size:12px">{n.source_name}</div>
-          </li>
-        ))}
-      </ul>
-    ) : <div class="muted">Sin noticias aún.</div>}
-    <a class="btn" href="/noticias">Ver todas</a>
-  </div>
-
-  <div class="grid">
-    <div class="card">
-      <h3>Galería</h3>
-      <img src="/img/colapinto.svg" alt="Colapinto placeholder" style="border-radius:14px;border:1px solid rgba(255,255,255,.12)"/>
-    </div>
-    <div class="card">
-      <h3>Alpine (colores guía)</h3>
-      <img src="/img/alpine.svg" alt="Alpine placeholder" style="border-radius:14px;border:1px solid rgba(255,255,255,.12)"/>
+      <h2>Disclaimer</h2>
+      <p class="muted" style="margin-top:0">
+        No oficial / no afiliado a F1. Las fuentes se acreditan. El objetivo es informar y contextualizar (ARG + #43).
+      </p>
     </div>
   </div>
 </Base>
