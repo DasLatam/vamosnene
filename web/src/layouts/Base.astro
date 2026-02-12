@@ -1,90 +1,98 @@
 ---
+import "../styles/theme.css";
+
 const {
-  title = "Vamos Nene...!!!",
-  description = "F1 en castellano para Argentina: vivo, calendario, noticias y guías. Foco Colapinto.",
-  layout = "portal", // "portal" | "dashboard"
+  title = "Vamos Nene — Colapinto Hub (AR)",
+  description = "Agenda 2026, noticias de Colapinto, clima del circuito y contexto en vivo. Sitio fan no oficial.",
+  canonical = Astro.url.toString(),
 } = Astro.props;
 
-const apiBase = import.meta.env.PUBLIC_API_BASE || "";
-const here = Astro.url.pathname;
-
 const nav = [
-  { href: "/", label: "Hoy" },
   { href: "/vivo", label: "Vivo" },
-  { href: "/calendario/2026", label: "Calendario" },
+  { href: "/calendario/2026", label: "Calendario 2026" },
   { href: "/noticias", label: "Noticias" },
-  { href: "/guias/como-ver-f1-en-argentina", label: "Guías" },
+  { href: "/suscribirme", label: "Suscribirme" },
   { href: "/tienda", label: "Tienda" },
+  { href: "/about", label: "Historia" },
 ];
-
-const bodyClass = layout === "dashboard" ? "dashboard" : "";
 ---
 <!doctype html>
 <html lang="es-AR">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title}</title>
-    <meta name="description" content={description} />
-    <link rel="canonical" href={Astro.url.toString()} />
-
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <meta name="theme-color" content="#67B7FF" />
-    <link rel="stylesheet" href="/app.css" />
-
+    <link rel="canonical" href={canonical} />
+    <meta name="description" content={description} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content={new URL("/og.svg", Astro.url).toString()} />
-  </head>
-  <body class={bodyClass}>
-    <header class="topbar">
-      <div class="topbarInner">
-        <div class="brand">
-          <a href="/" aria-label="Ir al inicio">
-            <img src="/brand/logo.svg" alt="Vamos Nene...!!!" />
-          </a>
-        </div>
+    <meta property="og:url" content={canonical} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <title>{title}</title>
 
-        <nav class="nav">
-          {nav.map((i) => (
-            <a class={"navlink " + (here === i.href ? "active" : "")} href={i.href}>{i.label}</a>
-          ))}
-          <a class="btn alpine" href="/suscribirme">Recibir avisos</a>
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context":"https://schema.org",
+      "@type":"WebSite",
+      "name":"Vamos Nene",
+      "url":"https://vamosnene.pages.dev/",
+      "inLanguage":"es-AR",
+      "description":description
+    })}></script>
+  </head>
+
+  <body>
+    <header class="container" style="padding-bottom:8px;">
+      <div class="card" style="padding:14px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+        <a href="/" class="btn" style="border-color: rgba(246,180,10,.35); background: linear-gradient(135deg, rgba(246,180,10,.20), rgba(116,172,223,.18));">
+          <span style="display:inline-flex; align-items:center; gap:10px;">
+            <span style="width:10px;height:10px;border-radius:999px;background:var(--sun); box-shadow: 0 0 0 5px rgba(246,180,10,.18);"></span>
+            <span style="font-weight:950;">Vamos Nene</span>
+            <span class="badge" title="Número 43">43</span>
+          </span>
+        </a>
+
+        <nav style="display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-end;">
+          {nav.map((n) => (<a href={n.href} class="badge">{n.label}</a>))}
         </nav>
       </div>
     </header>
 
-    <main class="container">
+    <main class="container" style="padding-top:8px;">
       <slot />
     </main>
 
-    <footer class="container" style="padding-top:10px;padding-bottom:28px">
-      <div class="card">
-        <div class="row" style="justify-content:space-between">
+    <footer class="container" style="padding-top:0;">
+      <div class="card" style="padding:16px;">
+        <div class="grid grid-3">
           <div>
-            <strong>Mapa del sitio</strong>
-            <div class="row" style="margin-top:10px">
-              <a class="badge" href="/">Hoy</a>
-              <a class="badge" href="/vivo">Vivo</a>
-              <a class="badge" href="/calendario/2026">Calendario</a>
-              <a class="badge" href="/noticias">Noticias</a>
-              <a class="badge" href="/guias/como-ver-f1-en-argentina">Guías</a>
-              <a class="badge" href="/tienda">Tienda</a>
-              <a class="badge" href="/suscribirme">Suscribirme</a>
-              <a class="badge" href="/about">Sobre</a>
-              <a class="badge" href="/contact">Contacto</a>
-              <a class="badge" href="/privacy">Privacidad</a>
-              <a class="badge" href="/terms">Términos</a>
-              <a class="badge" href="/sitemap.xml">Sitemap</a>
+            <div style="font-weight:950;">Mapa del sitio</div>
+            <div class="small" style="margin-top:6px;">
+              {nav.map((n, i) => (
+                <span>
+                  <a href={n.href} style="text-decoration:underline;">{n.label}</a>{i < nav.length-1 ? " · " : ""}
+                </span>
+              ))}
             </div>
           </div>
-          <div class="badge">API: <span class="kpi">{apiBase}</span></div>
+          <div>
+            <div style="font-weight:950;">Legales</div>
+            <div class="small" style="margin-top:6px;">
+              <a href="/privacy" style="text-decoration:underline;">Privacidad</a> ·
+              <a href="/terms" style="text-decoration:underline;">Términos</a> ·
+              <a href="/contact" style="text-decoration:underline;">Contacto</a>
+            </div>
+          </div>
+          <div>
+            <div style="font-weight:950;">Disclaimer</div>
+            <div class="small" style="margin-top:6px; line-height:1.5;">
+              Nota: no somos un sitio oficial ni afiliado a Formula 1/FIA ni a equipos. Fuentes acreditadas en cada nota.
+            </div>
+          </div>
         </div>
+
         <div class="hr"></div>
-        <p class="muted">
-          Nota: no somos un sitio oficial ni afiliado a Formula 1. Fuentes acreditadas en cada nota.
-        </p>
+        <div class="small">© {new Date().getFullYear()} Vamos Nene — fan hub argentino.</div>
       </div>
     </footer>
   </body>

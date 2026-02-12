@@ -1,12 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#67B7FF"/>
-      <stop offset="0.50" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#67B7FF"/>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#74ACDF"/>
+      <stop offset="1" stop-color="#FFFFFF"/>
     </linearGradient>
   </defs>
-  <rect width="128" height="128" rx="28" fill="url(#g)"/>
-  <circle cx="34" cy="34" r="12" fill="#ffcc33" opacity="0.92"/>
-  <text x="64" y="86" text-anchor="middle" font-size="58" font-family="system-ui" font-weight="950" fill="#0b1220">43</text>
+  <rect width="256" height="256" rx="56" fill="url(#sky)"/>
+  <circle cx="190" cy="66" r="26" fill="#F6B40A" opacity="0.95"/>
+  <text x="38" y="170" font-size="120" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-weight="900" fill="#0B172A">43</text>
 </svg>
