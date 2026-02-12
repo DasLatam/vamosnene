@@ -1,6 +1,7 @@
 ---
 import Base from "../../layouts/Base.astro";
 const api = import.meta.env.PUBLIC_API_BASE || "";
+const status = api ? await fetch(`${api}/api/status`).then(r => r.json()).catch(() => null) : null;
 const res = api ? await fetch(`${api}/api/events`) : null;
 const data = res ? await res.json() : { events: [] };
 
@@ -11,13 +12,13 @@ function fmt(iso) {
 ---
 <Base title="Calendario 2026 — Vamos Nene...!!!" description="Calendario F1 2026: prácticas, clasificación, sprint y carrera con horarios en Argentina.">
   <h2>Calendario 2026</h2>
-  <p class="muted">Cada evento tiene su página con sesiones + clima (si hay datos) + links.</p>
+  <div class="card">
+    <p><strong>Qué vas a ver:</strong> lista de eventos con páginas por Gran Premio (sesiones + horarios ARG + clima).</p>
+    <p class="muted">Última actualización calendario: {status?.sync?.schedule ? fmt(status.sync.schedule) : "—"}.</p>
+  </div>
 
   <div class="card">
-    {!api ? (
-      <div class="muted">Falta configurar <code>PUBLIC_API_BASE</code> en Cloudflare Pages.</div>
-    ) : null}
-
+    {!api ? <div class="muted">Falta configurar <code>PUBLIC_API_BASE</code> en Cloudflare Pages.</div> : null}
     {data.events?.length ? (
       <ul>
         {data.events.map((e) => (
@@ -27,8 +28,6 @@ function fmt(iso) {
           </li>
         ))}
       </ul>
-    ) : (
-      <div class="muted">Todavía no hay eventos (corré el sync admin o esperá al cron).</div>
-    )}
+    ) : <div class="muted">Todavía no hay eventos (corré el sync admin o esperá al cron).</div>}
   </div>
 </Base>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600">
+  <defs>
+    <linearGradient id="p" x1="0" x2="1">
+      <stop offset="0" stop-color="#1fa3ff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ff5ab3" stop-opacity="0.22"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="600" fill="#0b1020"/>
+  <rect x="60" y="60" width="1080" height="480" rx="40" fill="url(#p)" stroke="rgba(255,255,255,0.16)"/>
+  <text x="110" y="180" fill="rgba(255,255,255,0.92)" font-family="system-ui" font-size="54" font-weight="900">Alpine (colores guía)</text>
+  <text x="110" y="245" fill="rgba(255,255,255,0.72)" font-family="system-ui" font-size="26" font-weight="700">Azul + Rosa (referencia visual) · Placeholder</text>
+  <g transform="translate(120,320)" fill="none" stroke="rgba(255,255,255,0.40)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M80 160c120-80 260-120 420-120 120 0 220 20 320 60 40 16 80 34 120 54"/>
+    <path d="M170 160c40-80 110-120 210-120h110c90 0 150 40 190 110"/>
+    <circle cx="260" cy="170" r="40"/>
+    <circle cx="700" cy="170" r="40"/>
+  </g>
+  <text x="980" y="510" fill="#ff5ab3" font-family="system-ui" font-size="56" font-weight="950">A</text>
+</svg>

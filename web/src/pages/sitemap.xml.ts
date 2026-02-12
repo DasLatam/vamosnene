@@ -3,7 +3,7 @@ export async function GET({ request }: { request: Request }) {
   const api = (import.meta as any).env?.PUBLIC_API_BASE || "";
 
   const staticPaths = [
-    "/", "/vivo", "/calendario/2026", "/noticias", "/tienda", "/avisos",
+    "/", "/vivo", "/calendario/2026", "/noticias", "/tienda", "/suscribirme",
     "/privacy", "/terms", "/about", "/contact",
     "/guias/como-ver-f1-en-argentina",
     "/guias/colapinto-biografia",

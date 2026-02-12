@@ -8,9 +8,7 @@ const apiBase = import.meta.env.PUBLIC_API_BASE || "";
 const url = Astro.url;
 const origin = url.origin;
 const canonical = url.toString();
-
 const ogImage = `${origin}/og.svg`;
-const siteName = "Vamos Nene...!!!";
 ---
 <!doctype html>
 <html lang="es-AR">
@@ -21,25 +19,24 @@ const siteName = "Vamos Nene...!!!";
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
 
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta name="theme-color" content="#74ACDF" />
+
     <!-- OpenGraph / Twitter -->
     <meta property="og:locale" content="es_AR" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content={siteName} />
+    <meta property="og:site_name" content="Vamos Nene...!!!" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={ogImage} />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={title} />
-    <meta name="twitter:description" content={description} />
-
-    <meta name="theme-color" content="#76c7ff" />
 
     <script type="application/ld+json">
       {JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebSite",
-        name: siteName,
+        name: "Vamos Nene...!!!",
         url: origin,
         inLanguage: "es-AR",
         description,
@@ -48,13 +45,20 @@ const siteName = "Vamos Nene...!!!";
 
     <style>
       :root{
-        --bg: #0b1020;
-        --card: rgba(255,255,255,.06);
-        --border: rgba(255,255,255,.14);
-        --text: rgba(255,255,255,.92);
-        --muted: rgba(255,255,255,.72);
-        --brand: #76c7ff;
-        --brand2:#ffffff;
+        --bg:#070b18;
+        --card:rgba(255,255,255,.06);
+        --border:rgba(255,255,255,.16);
+        --text:rgba(255,255,255,.92);
+        --muted:rgba(255,255,255,.72);
+
+        /* Argentina */
+        --ar:#74ACDF;
+        --sun:#f6c343;
+
+        /* Alpine accents */
+        --alpine-blue:#1fa3ff;
+        --alpine-pink:#ff5ab3;
+
         --cta:#22c55e;
         color-scheme: dark;
       }
@@ -64,39 +68,27 @@ const siteName = "Vamos Nene...!!!";
         font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif;
         line-height:1.5;
         background:
-          radial-gradient(1200px 600px at 10% 0%, rgba(118,199,255,.18), transparent 60%),
-          radial-gradient(1000px 600px at 90% 10%, rgba(255,255,255,.10), transparent 55%),
+          radial-gradient(900px 560px at 12% 0%, rgba(116,172,223,.20), transparent 60%),
+          radial-gradient(900px 560px at 88% 10%, rgba(255,90,179,.14), transparent 55%),
+          radial-gradient(1200px 700px at 70% 0%, rgba(31,163,255,.16), transparent 60%),
           var(--bg);
         color: var(--text);
       }
       a{ color: inherit; }
-      .wrap{ max-width: 1040px; margin: 0 auto; padding: 18px; }
+      .wrap{ max-width: 1080px; margin: 0 auto; padding: 18px; }
       header{
         position: sticky; top:0;
         backdrop-filter: blur(10px);
-        background: rgba(11,16,32,.72);
+        background: rgba(7,11,24,.74);
         border-bottom: 1px solid var(--border);
         z-index: 10;
       }
-      .topbar{
-        display:flex; align-items:center; justify-content:space-between; gap: 12px;
-      }
-      .brand{
-        display:flex; flex-direction:column; gap:2px;
-      }
-      .brand strong{
-        letter-spacing:.2px;
-      }
-      .brand small{
-        color: var(--muted);
-        font-size:12px;
-      }
-      nav a{
-        text-decoration:none;
-        opacity:.9;
-        margin-right: 12px;
-        font-weight: 600;
-      }
+      .topbar{ display:flex; align-items:center; justify-content:space-between; gap: 12px; }
+      .brandLink{ text-decoration:none; display:flex; align-items:center; gap:10px; }
+      .brandTitle{ display:flex; flex-direction:column; gap:2px; }
+      .brandTitle strong{ letter-spacing:.2px; }
+      .brandTitle small{ color: var(--muted); font-size:12px; }
+      nav a{ text-decoration:none; opacity:.9; margin-right: 12px; font-weight: 700; }
       nav a:hover{ opacity:1; text-decoration: underline; text-underline-offset: 4px; }
       .btn{
         display:inline-flex; align-items:center; justify-content:center;
@@ -104,27 +96,17 @@ const siteName = "Vamos Nene...!!!";
         border: 1px solid var(--border);
         background: rgba(255,255,255,.04);
         text-decoration:none;
-        font-weight: 700;
+        font-weight: 800;
       }
-      .btn.primary{
-        background: var(--cta);
-        border-color: rgba(0,0,0,.2);
-        color:#07130a;
-      }
-      .hero{
-        padding: 14px 0 0;
-      }
-      .hero .card{
+      .btn.primary{ background: var(--cta); border-color: rgba(0,0,0,.2); color:#07130a; }
+      .hero{ padding: 14px 0 0; }
+      .heroCard{
         border-radius: 18px;
-        background: linear-gradient(90deg, rgba(118,199,255,.12), rgba(255,255,255,.06));
+        background: linear-gradient(90deg, rgba(116,172,223,.16), rgba(255,255,255,.06));
         border: 1px solid var(--border);
         padding: 14px;
       }
-      .hero h1{
-        margin: 0 0 6px;
-        font-size: 26px;
-        letter-spacing:.2px;
-      }
+      .hero h1{ margin: 0 0 6px; font-size: 26px; letter-spacing:.2px; }
       .muted{ color: var(--muted); }
       main{ padding: 14px 0 24px; }
       .card{
@@ -134,11 +116,7 @@ const siteName = "Vamos Nene...!!!";
         background: var(--card);
         margin: 14px 0;
       }
-      .grid{
-        display:grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 14px;
-      }
+      .grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
       .pill{
         display:inline-block;
         padding: 4px 10px;
@@ -146,17 +124,23 @@ const siteName = "Vamos Nene...!!!";
         border:1px solid var(--border);
         color: var(--muted);
         font-size: 12px;
+        background: rgba(255,255,255,.03);
       }
-      footer{
-        border-top: 1px solid var(--border);
-        padding: 18px 0 26px;
-        color: var(--muted);
-      }
-      img{ max-width:100%; height:auto; }
-      input,button{ font:inherit; }
       .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
       .spacer{ flex:1; }
-      code{ color: rgba(118,199,255,.95); }
+      footer{ border-top: 1px solid var(--border); padding: 18px 0 26px; color: var(--muted); }
+      img{ max-width:100%; height:auto; }
+      input,button{ font:inherit; }
+      code{ color: rgba(116,172,223,.95); }
+      .siteMapGrid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 12px; }
+      .siteMapGrid a{ text-decoration:none; }
+      .siteMapGrid a:hover{ text-decoration: underline; text-underline-offset: 3px; }
+      .noteBox{
+        border-left: 4px solid var(--ar);
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(116,172,223,.10);
+      }
     </style>
 
     <!-- AdSense: pegá acá el script cuando te aprueben -->
@@ -166,35 +150,36 @@ const siteName = "Vamos Nene...!!!";
   <body>
     <header>
       <div class="wrap topbar">
-        <div class="brand">
-          <strong>Vamos Nene...!!!</strong>
-          <small>F1 en castellano · foco Colapinto · calendario · clima</small>
-        </div>
+        <a class="brandLink" href="/" aria-label="Inicio">
+          <img src="/img/sol.svg" width="28" height="28" alt="Sol de Mayo" />
+          <div class="brandTitle">
+            <strong>Vamos Nene...!!!</strong>
+            <small>F1 en castellano · foco Colapinto · calendario · clima</small>
+          </div>
+        </a>
 
         <nav class="row">
           <a href="/vivo">Vivo</a>
           <a href="/calendario/2026">Calendario</a>
           <a href="/noticias">Noticias</a>
           <a href="/tienda">Tienda</a>
-          <a href="/avisos">Avisos</a>
+          <a href="/suscribirme">Suscribirme</a>
           <span class="spacer"></span>
-          <a class="btn primary" href="/avisos">Suscribirme</a>
+          <a class="btn primary" href="/suscribirme">Recibir avisos</a>
         </nav>
       </div>
     </header>
 
     <div class="wrap hero">
-      <div class="card">
+      <div class="heroCard">
         <h1>Todo lo importante de F1, en clave argentina.</h1>
         <div class="row">
-          <span class="pill">Colapinto</span>
+          <span class="pill">Celeste + Blanco</span>
+          <span class="pill">#43</span>
           <span class="pill">Horarios ARG</span>
           <span class="pill">Clima del circuito</span>
           <span class="pill">Noticias con contexto</span>
         </div>
-        <p class="muted" style="margin:10px 0 0">
-          Nota: no somos un sitio oficial ni afiliado a Formula 1. Fuentes acreditadas en cada nota.
-        </p>
       </div>
     </div>
 
@@ -204,13 +189,39 @@ const siteName = "Vamos Nene...!!!";
 
     <footer>
       <div class="wrap">
-        <div>© {new Date().getFullYear()} Vamos Nene...!!!</div>
-        <div class="muted" style="margin-top:6px">
-          <a href="/privacy">Privacidad</a> · <a href="/terms">Términos</a> · <a href="/about">Sobre</a> · <a href="/contact">Contacto</a>
+        <div class="noteBox">
+          <strong>Nota:</strong> no somos un sitio oficial ni afiliado a Formula 1. Fuentes acreditadas en cada nota.
         </div>
-        <div class="muted" style="margin-top:6px">
-          API: <code>{apiBase || "(no configurada)"}</code>
+
+        <div class="siteMapGrid">
+          <div>
+            <strong>Secciones</strong><br/>
+            <a href="/vivo">Vivo</a><br/>
+            <a href="/calendario/2026">Calendario 2026</a><br/>
+            <a href="/noticias">Noticias</a><br/>
+            <a href="/tienda">Tienda</a><br/>
+            <a href="/suscribirme">Suscribirme</a>
+          </div>
+          <div>
+            <strong>Guías</strong><br/>
+            <a href="/guias/como-ver-f1-en-argentina">Cómo ver F1 en Argentina</a><br/>
+            <a href="/guias/colapinto-biografia">Colapinto: bio y contexto</a><br/>
+            <a href="/guias/glosario-f1">Glosario F1</a><br/>
+            <a href="/guias/horarios-argentina">Horarios Argentina</a><br/>
+            <a href="/guias/testing-bahrain">Cómo leer el testing</a>
+          </div>
+          <div>
+            <strong>Legal</strong><br/>
+            <a href="/privacy">Privacidad</a><br/>
+            <a href="/terms">Términos</a><br/>
+            <a href="/about">Sobre</a><br/>
+            <a href="/contact">Contacto</a><br/>
+            <a href="/sitemap.xml">Sitemap</a>
+          </div>
         </div>
+
+        <div style="margin-top:14px">© {new Date().getFullYear()} Vamos Nene...!!!</div>
+        <div class="muted" style="margin-top:6px">API: <code>{apiBase || "(no configurada)"}</code></div>
       </div>
     </footer>
   </body>

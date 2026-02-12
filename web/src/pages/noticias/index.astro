@@ -6,11 +6,12 @@ const q = "colapinto";
 const limit = 15;
 const offset = 0;
 
+const status = api ? await fetch(`${api}/api/status`).then(r => r.json()).catch(() => null) : null;
 const res = api ? await fetch(`${api}/api/news?q=${encodeURIComponent(q)}&limit=${limit}&offset=${offset}`) : null;
 const data = res ? await res.json() : { items: [], q, limit, offset };
 
 function fmt(iso) {
-  if (!iso) return "";
+  if (!iso) return "—";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return String(iso);
   return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(d);
@@ -18,13 +19,17 @@ function fmt(iso) {
 ---
 <Base title="Noticias — Vamos Nene...!!!" description="Noticias de Colapinto con fuente y link, más notas editoriales automáticas en castellano.">
   <h2>Noticias (Colapinto)</h2>
-  <p class="muted">Mostramos fuente + link y sumamos contexto breve en castellano. Evitamos copiar artículos completos.</p>
 
-  {!api ? (
-    <div class="card">
-      <div class="muted">Falta configurar <code>PUBLIC_API_BASE</code> en Cloudflare Pages.</div>
+  <div class="card">
+    <p><strong>Qué vas a ver:</strong> titulares con crédito a la fuente + link, y un bloque de “Notas de la Redacción” con contexto breve (sin copiar el artículo).</p>
+    <p><strong>Fuentes consultadas:</strong> RSS de F1Latam, Formula1.com, Autosport y Motorsport.com.</p>
+    <p class="muted">Última actualización: {status?.sync?.news ? fmt(status.sync.news) : "—"}.</p>
+    <p class="muted">Tip: para ver todo (sin filtro), usá el botón “Ver todo”.</p>
+    <div class="row" style="margin-top:10px">
+      <a class="btn" href="/noticias">Colapinto</a>
+      <a class="btn" href={`${api}/api/news?q=all&limit=20&offset=0`} rel="nofollow" target="_blank">Ver todo (API)</a>
     </div>
-  ) : null}
+  </div>
 
   <div id="news-list">
     {data.items?.length ? (
@@ -35,9 +40,13 @@ function fmt(iso) {
             {n.published_at ? ` · ${fmt(n.published_at)}` : ""}
           </div>
 
-          {n.image_url ? (
-            <img src={n.image_url} loading="lazy" decoding="async" style="margin:10px 0;border-radius:14px;border:1px solid rgba(255,255,255,.10)" />
-          ) : null}
+          <img
+            src={n.image_url || "/img/colapinto.svg"}
+            loading="lazy"
+            decoding="async"
+            alt={n.title}
+            style="margin:10px 0;border-radius:14px;border:1px solid rgba(255,255,255,.10)"
+          />
 
           <h3 style="margin:8px 0 6px">
             <a href={n.url} rel="nofollow noopener noreferrer" target="_blank">{n.title}</a>
@@ -45,7 +54,10 @@ function fmt(iso) {
 
           {n.snippet ? <p class="muted" style="margin:0 0 10px">{n.snippet}</p> : null}
 
-          <p style="margin:0"><strong>Notas de la Redacción:</strong> {n.auto_note}</p>
+          <div class="noteBox">
+            <strong>Notas de la Redacción</strong>
+            <div style="margin-top:6px">{n.auto_note}</div>
+          </div>
 
           {n.tags ? <div class="muted" style="font-size:12px;margin-top:10px">Tags: {n.tags}</div> : null}
         </article>
@@ -66,7 +78,7 @@ function fmt(iso) {
     const api = "{api}";
     const q = "{q}";
     let limit = {limit};
-    let offset = {limit}; // ya mostramos 0..limit-1
+    let offset = {limit};
 
     const list = document.getElementById("news-list");
     const btn = document.getElementById("load-more");
@@ -84,16 +96,15 @@ function fmt(iso) {
       meta.innerHTML = `<a href="${esc(n.source_url)}" rel="nofollow noopener noreferrer" target="_blank">${esc(n.source_name)}</a>` + (n.published_at ? ` · ${esc(n.published_at)}` : "");
       wrap.appendChild(meta);
 
-      if (n.image_url){
-        const img = document.createElement("img");
-        img.src = n.image_url;
-        img.loading = "lazy";
-        img.decoding = "async";
-        img.style.margin = "10px 0";
-        img.style.borderRadius = "14px";
-        img.style.border = "1px solid rgba(255,255,255,.10)";
-        wrap.appendChild(img);
-      }
+      const img = document.createElement("img");
+      img.src = n.image_url || "/img/colapinto.svg";
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.alt = n.title || "noticia";
+      img.style.margin = "10px 0";
+      img.style.borderRadius = "14px";
+      img.style.border = "1px solid rgba(255,255,255,.10)";
+      wrap.appendChild(img);
 
       const h = document.createElement("h3");
       h.style.margin = "8px 0 6px";
@@ -108,10 +119,10 @@ function fmt(iso) {
         wrap.appendChild(p);
       }
 
-      const note = document.createElement("p");
-      note.style.margin = "0";
-      note.innerHTML = `<strong>Notas de la Redacción:</strong> ${esc(n.auto_note)}`;
-      wrap.appendChild(note);
+      const noteBox = document.createElement("div");
+      noteBox.className = "noteBox";
+      noteBox.innerHTML = `<strong>Notas de la Redacción</strong><div style="margin-top:6px">${esc(n.auto_note)}</div>`;
+      wrap.appendChild(noteBox);
 
       if (n.tags){
         const t = document.createElement("div");

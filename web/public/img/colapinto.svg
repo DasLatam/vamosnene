@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1">
+      <stop offset="0" stop-color="#74ACDF" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.10"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="600" fill="#0b1020"/>
+  <rect x="60" y="60" width="1080" height="480" rx="40" fill="url(#g)" stroke="rgba(255,255,255,0.16)"/>
+  <text x="110" y="180" fill="rgba(255,255,255,0.92)" font-family="system-ui" font-size="54" font-weight="900">Franco Colapinto</text>
+  <text x="110" y="245" fill="rgba(255,255,255,0.72)" font-family="system-ui" font-size="26" font-weight="700">Ilustración propia (placeholder) · Celeste/Blanco · #43</text>
+  <g transform="translate(110,290)">
+    <path d="M120 180c90-20 160-80 190-160 10-28 10-60-5-85-25-40-80-55-130-40-45 14-80 50-95 92-20 55-35 120-60 170z" fill="rgba(255,255,255,0.16)"/>
+    <circle cx="260" cy="60" r="28" fill="#f6c343"/>
+    <text x="520" y="120" fill="#74ACDF" font-family="system-ui" font-size="140" font-weight="950">43</text>
+    <text x="520" y="170" fill="rgba(255,255,255,0.78)" font-family="system-ui" font-size="28" font-weight="800">Vamos Nene..!</text>
+  </g>
+</svg>

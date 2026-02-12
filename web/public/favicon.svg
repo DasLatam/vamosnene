@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128">
+  <defs>
+    <linearGradient id="a" x1="0" x2="1">
+      <stop offset="0" stop-color="#74ACDF"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#0b1020"/>
+  <rect x="10" y="10" width="108" height="108" rx="24" fill="url(#a)" opacity="0.95"/>
+  <circle cx="94" cy="34" r="12" fill="#f6c343"/>
+  <g fill="#f6c343" opacity="0.9">
+    <path d="M94 14 l2 10 h-4z"/>
+    <path d="M94 54 l2 -10 h-4z"/>
+    <path d="M74 34 l10 2 v-4z"/>
+    <path d="M114 34 l-10 2 v-4z"/>
+  </g>
+  <text x="32" y="88" font-family="system-ui, -apple-system, Segoe UI, Roboto" font-weight="900" font-size="54" fill="#0b1020">43</text>
+</svg>

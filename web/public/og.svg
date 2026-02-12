@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#76c7ff" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0.15"/>
+      <stop offset="0" stop-color="#74ACDF" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ff5ab3" stop-opacity="0.20"/>
     </linearGradient>
   </defs>
-  <rect width="1200" height="630" fill="#0b1020"/>
+  <rect width="1200" height="630" fill="#070b18"/>
   <rect x="60" y="70" width="1080" height="490" rx="36" fill="url(#g)" stroke="rgba(255,255,255,0.16)" />
-  <text x="120" y="230" fill="rgba(255,255,255,0.92)" font-family="system-ui, -apple-system, Segoe UI, Roboto" font-size="72" font-weight="800">Vamos Nene...!!!</text>
-  <text x="120" y="315" fill="rgba(255,255,255,0.78)" font-family="system-ui, -apple-system, Segoe UI, Roboto" font-size="34" font-weight="600">F1 en castellano · foco Colapinto · calendario · clima</text>
-  <text x="120" y="395" fill="rgba(255,255,255,0.70)" font-family="system-ui, -apple-system, Segoe UI, Roboto" font-size="26">Noticias con contexto (fuente + link) · Horarios ARG · Alertas 72h</text>
+  <text x="120" y="230" fill="rgba(255,255,255,0.92)" font-family="system-ui" font-size="72" font-weight="900">Vamos Nene...!!!</text>
+  <text x="120" y="315" fill="rgba(255,255,255,0.78)" font-family="system-ui" font-size="34" font-weight="700">F1 en castellano · Colapinto · Calendario · Clima</text>
+  <text x="120" y="395" fill="rgba(255,255,255,0.70)" font-family="system-ui" font-size="26">Noticias con fuente + contexto · Horarios ARG · Avisos 72h</text>
 </svg>
