@@ -2,53 +2,58 @@
 import Base from "../layouts/Base.astro";
 const api = import.meta.env.PUBLIC_API_BASE;
 
-const newsAll = await fetch(`${api}/api/news`).then(r=>r.json()).catch(()=>({items:[]}));
-const items = Array.isArray(newsAll.items) ? newsAll.items : [];
+let news: any = null;
 
-const filtered = items.filter(it=>{
-  const s = `${it.title||""} ${it.snippet||""} ${it.tags||""}`.toLowerCase();
-  return s.includes("colapinto") || s.includes("franco colapinto");
-}).slice(0,30);
-
-function clean(s){
-  return String(s||"").replace(/\s+/g," ").trim();
+async function safeJson(url: string) {
+  try {
+    const r = await fetch(url, { headers: { "accept": "application/json" } });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
 }
+
+if (api) news = await safeJson(`${api}/api/news`);
+
+const items = Array.isArray(news?.items) ? news.items : [];
 ---
-<Base title="Noticias (Colapinto) — Vamos Nene...!!!" description="Noticias filtradas por Colapinto con nota editorial corta.">
-  <h1 style="margin: 10px 0 6px">Noticias (Colapinto)</h1>
-  <p class="muted" style="margin:0">
-    Qué vas a ver: titulares donde aparece <b>Colapinto</b> (en título o snippet), con <b>Notas de la Redacción</b> automatizadas.
-    Fuentes acreditadas en cada item.
+<Base title="Noticias (Colapinto) — Vamos Nene...!!!" description="Noticias sobre Colapinto con fuentes acreditadas y contexto.">
+  <h1>Noticias</h1>
+  <p class="muted">
+    Qué ves acá: <strong>notas sobre Colapinto</strong> (o relacionadas) con <strong>fuente acreditada</strong> + resumen.
   </p>
 
-  <div class="card" style="margin-top:14px">
-    <h2 style="margin:0 0 8px">Últimos items</h2>
-    <div class="muted" style="margin-bottom:12px">Total filtrados: {filtered.length}</div>
-
-    {filtered.length ? filtered.map(n => (
-      <article class="card" style="box-shadow:none;margin:12px 0;background:rgba(103,183,255,.08)">
-        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
-          <div style="min-width:0">
-            <a href={n.url} target="_blank" rel="noopener noreferrer" style="font-weight:950;text-decoration:none">
-              {clean(n.title)}
-            </a>
-            <div class="muted" style="font-size:12px;margin-top:4px">
-              Fuente: <b>{n.source_name || n.source_code || ""}</b>
-            </div>
-            {n.snippet ? <p class="muted" style="margin:8px 0 0">{clean(n.snippet)}</p> : null}
-          </div>
-          <span class="kpi"><span class="dot"></span> #43</span>
-        </div>
-
-        {n.auto_note ? (
-          <div style="margin-top:10px;border:1px dashed rgba(11,18,32,.18);border-radius:14px;padding:10px;background:#fff">
-            <div style="font-weight:950">Notas de la Redacción</div>
-            <div class="muted" style="margin-top:6px">{clean(n.auto_note)}</div>
-          </div>
-        ) : null}
-      </article>
-    )) : (
-      <div class="muted">No hay items suficientes aún. Corré el sync admin o esperá el cron.</div>
-    )}
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <span class="badge"><span class="dot"></span> Fuentes por RSS / agregadores</span>
+      <a class="btn primary" href="/vivo">Volver al Dashboard</a>
+    </div>
   </div>
+
+  {items.length ? (
+    <div class="grid">
+      {items.slice(0, 24).map((n:any)=>(
+        <article class="card" style="margin:0">
+          <div class="row" style="justify-content:space-between">
+            <span class="badge">Fuente: {n.source || "—"}</span>
+            <span class="badge">{n.published_at || "—"}</span>
+          </div>
+          <h2 style="margin:10px 0 6px;font-size:18px">{n.title || "—"}</h2>
+          <p class="muted">{n.summary || "Sin resumen aún."}</p>
+          {n.editorial_note ? (
+            <div class="card" style="margin:10px 0 0; box-shadow:none; border-color:rgba(11,18,32,.10); background:rgba(103,183,255,.12)">
+              <strong>Notas de la Redacción</strong>
+              <p class="muted" style="margin-top:6px">{n.editorial_note}</p>
+            </div>
+          ) : null}
+          <div class="row" style="margin-top:10px">
+            {n.url ? <a class="btn" href={n.url} target="_blank" rel="noreferrer">Leer fuente</a> : null}
+          </div>
+        </article>
+      ))}
+    </div>
+  ) : (
+    <div class="card">
+      <p class="muted">Todavía no hay noticias cacheadas. Ejecutá el sync admin del Worker o esperá al cron.</p>
+    </div>
+  )}
 </Base>

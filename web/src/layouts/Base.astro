@@ -1,19 +1,23 @@
 ---
 const {
   title = "Vamos Nene...!!!",
-  description = "Centro argentino de F1: qué pasa hoy, horarios ARG, dónde verlo y noticias (foco Colapinto).",
+  description = "F1 en castellano para Argentina: vivo, calendario, noticias y guías. Foco Colapinto.",
+  layout = "portal", // "portal" | "dashboard"
 } = Astro.props;
 
-const here = Astro.url.pathname;
 const apiBase = import.meta.env.PUBLIC_API_BASE || "";
+const here = Astro.url.pathname;
+
 const nav = [
-  ["/vivo","Vivo"],
-  ["/calendario/2026","Calendario 2026"],
-  ["/noticias","Noticias"],
-  ["/colapinto","Colapinto"],
-  ["/tienda","Tienda"],
-  ["/suscribirme","Suscribirme"],
+  { href: "/", label: "Hoy" },
+  { href: "/vivo", label: "Vivo" },
+  { href: "/calendario/2026", label: "Calendario" },
+  { href: "/noticias", label: "Noticias" },
+  { href: "/guias/como-ver-f1-en-argentina", label: "Guías" },
+  { href: "/tienda", label: "Tienda" },
 ];
+
+const bodyClass = layout === "dashboard" ? "dashboard" : "";
 ---
 <!doctype html>
 <html lang="es-AR">
@@ -23,26 +27,30 @@ const nav = [
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={Astro.url.toString()} />
-    <meta name="theme-color" content="#67B7FF" />
+
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/vn.css" />
+    <meta name="theme-color" content="#67B7FF" />
+    <link rel="stylesheet" href="/app.css" />
+
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content={new URL("/og.svg", Astro.url).toString()} />
   </head>
-  <body>
-    <header class="top">
-      <div class="flag"></div>
-      <div class="head">
-        <a class="brand" href="/">
-          <span class="badge43" aria-hidden="true"></span>
-          <span>
-            <strong>Vamos Nene...!!!</strong>
-            <small>F1 en castellano (ARG) · foco Colapinto · #43</small>
-          </span>
-        </a>
+  <body class={bodyClass}>
+    <header class="topbar">
+      <div class="topbarInner">
+        <div class="brand">
+          <a href="/" aria-label="Ir al inicio">
+            <img src="/brand/logo.svg" alt="Vamos Nene...!!!" />
+          </a>
+        </div>
 
         <nav class="nav">
-          {nav.map(([href,label]) => (
-            <a class={String(here).startsWith(href) ? "cta" : ""} href={href}>{label}</a>
+          {nav.map((i) => (
+            <a class={"navlink " + (here === i.href ? "active" : "")} href={i.href}>{i.label}</a>
           ))}
+          <a class="btn alpine" href="/suscribirme">Recibir avisos</a>
         </nav>
       </div>
     </header>
@@ -51,42 +59,32 @@ const nav = [
       <slot />
     </main>
 
-    <footer class="footer">
-      <div class="footerIn">
-        <div>
-          <strong>Mapa del sitio</strong><div class="hr"></div>
-          <a href="/">Inicio</a>
-          <a href="/vivo">Vivo</a>
-          <a href="/calendario/2026">Calendario 2026</a>
-          <a href="/noticias">Noticias</a>
-          <a href="/colapinto">Colapinto</a>
-          <a href="/guias/como-ver-f1-en-argentina">Cómo ver F1 (ARG)</a>
-          <a href="/guias/glosario-f1">Glosario F1</a>
-          <a href="/tienda">Tienda</a>
-          <a href="/suscribirme">Suscribirme</a>
-          <a href="/privacy">Privacidad</a>
-          <a href="/terms">Términos</a>
-          <a href="/about">Sobre</a>
-          <a href="/contact">Contacto</a>
-          <a href="/sitemap.xml">Sitemap</a>
+    <footer class="container" style="padding-top:10px;padding-bottom:28px">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div>
+            <strong>Mapa del sitio</strong>
+            <div class="row" style="margin-top:10px">
+              <a class="badge" href="/">Hoy</a>
+              <a class="badge" href="/vivo">Vivo</a>
+              <a class="badge" href="/calendario/2026">Calendario</a>
+              <a class="badge" href="/noticias">Noticias</a>
+              <a class="badge" href="/guias/como-ver-f1-en-argentina">Guías</a>
+              <a class="badge" href="/tienda">Tienda</a>
+              <a class="badge" href="/suscribirme">Suscribirme</a>
+              <a class="badge" href="/about">Sobre</a>
+              <a class="badge" href="/contact">Contacto</a>
+              <a class="badge" href="/privacy">Privacidad</a>
+              <a class="badge" href="/terms">Términos</a>
+              <a class="badge" href="/sitemap.xml">Sitemap</a>
+            </div>
+          </div>
+          <div class="badge">API: <span class="kpi">{apiBase}</span></div>
         </div>
-
-        <div>
-          <strong>Qué es esto</strong><div class="hr"></div>
-          <p class="muted" style="margin:0">
-            Un “centro argentino” para resolver rápido: <b>qué hay hoy</b>, <b>horarios ARG</b>, <b>dónde verlo</b> y <b>qué significa</b>.
-          </p>
-          <div class="hr"></div>
-          <p class="muted" style="margin:0">
-            Nota: no somos un sitio oficial ni afiliado a Formula 1. Fuentes acreditadas en cada nota.
-          </p>
-        </div>
-
-        <div>
-          <strong>Estado</strong><div class="hr"></div>
-          <div class="kpi"><span class="dot"></span> API: <span class="mono">{apiBase}</span></div>
-          <p class="muted" style="margin-top:10px">© {new Date().getFullYear()} Vamos Nene...!!!</p>
-        </div>
+        <div class="hr"></div>
+        <p class="muted">
+          Nota: no somos un sitio oficial ni afiliado a Formula 1. Fuentes acreditadas en cada nota.
+        </p>
       </div>
     </footer>
   </body>

@@ -1,13 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#74ACDF" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#ff5ab3" stop-opacity="0.20"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#67B7FF"/>
+      <stop offset="0.55" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#67B7FF"/>
     </linearGradient>
   </defs>
-  <rect width="1200" height="630" fill="#070b18"/>
-  <rect x="60" y="70" width="1080" height="490" rx="36" fill="url(#g)" stroke="rgba(255,255,255,0.16)" />
-  <text x="120" y="230" fill="rgba(255,255,255,0.92)" font-family="system-ui" font-size="72" font-weight="900">Vamos Nene...!!!</text>
-  <text x="120" y="315" fill="rgba(255,255,255,0.78)" font-family="system-ui" font-size="34" font-weight="700">F1 en castellano · Colapinto · Calendario · Clima</text>
-  <text x="120" y="395" fill="rgba(255,255,255,0.70)" font-family="system-ui" font-size="26">Noticias con fuente + contexto · Horarios ARG · Avisos 72h</text>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="220" cy="160" r="50" fill="#ffcc33" opacity="0.95"/>
+  <text x="220" y="360" text-anchor="middle" font-size="170" font-family="system-ui" font-weight="950" fill="#0b1220">43</text>
+  <text x="360" y="260" font-size="72" font-family="system-ui" font-weight="950" fill="#0b1220">Vamos Nene...!!!</text>
+  <text x="360" y="340" font-size="34" font-family="system-ui" font-weight="800" fill="rgba(11,18,32,.75)">Dashboard + noticias + calendario F1 en castellano</text>
+  <text x="360" y="400" font-size="28" font-family="system-ui" font-weight="700" fill="rgba(11,18,32,.70)">Identidad ARG · foco Colapinto · horarios Argentina</text>
 </svg>
